@@ -1,4 +1,5 @@
 #pragma once
+#include "ProcSim/Utils/Straightness.h"
 
 class Config {
 public:
@@ -53,7 +54,7 @@ public:
     /* if true, the heatmap will be very noisy and random*/
     static bool COMPLETELYRANDOM;
     /* determines how curved we want our roads to be*/
-    static const enum STRAIGHTNESS_ENUM { CURVED, STRAIGHT, VERYSTRAIGHT } STRAIGHTNESS;
+    static ESTRAIGHTNESS STRAIGHTNESS;
     /* path to input image, no image is used if empty*/
     static const char* IMGPATH;
     /* show segments colored */

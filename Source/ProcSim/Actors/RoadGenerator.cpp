@@ -16,9 +16,10 @@ ARoadGenerator::ARoadGenerator()
 void ARoadGenerator::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
+
+// Choose image from disk and apply it to proceduralmeshcomponent
 void ARoadGenerator::ChooseImageAndApplyToPlane(UProceduralMeshComponent* PlaneReference)
 {
 	FString filePath = ImageHandler::ChooseImageFromFileDialog();
@@ -40,6 +41,7 @@ void ARoadGenerator::ChooseImageAndApplyToPlane(UProceduralMeshComponent* PlaneR
 		ImageHandler::ApplyTextureToProceduralMeshComponent(PlaneReference, Texture);
 	}
 
+	/* image is stored as shared pointer to unsigned character array */
 	std::unique_ptr<unsigned char[]> loadedImage(new unsigned char[outWidth * outHeight]);
 
 	for (int y = 0; y < outHeight; y++) {
@@ -48,16 +50,20 @@ void ARoadGenerator::ChooseImageAndApplyToPlane(UProceduralMeshComponent* PlaneR
 		}
 	}
 
+	/* create heatmap from the loaded image */
 	this->heatmap = new Heatmap(loadedImage.release(), outWidth, outHeight);
 
 }
 
+// If completely random, the heatmap will be made of simplex noise
 void ARoadGenerator::CreateRandomHeatmapAndApplyToPlane(UProceduralMeshComponent* PlaneReference, bool completelyRandom)
 {
+	/* parameters for the heatmap */
 	Config::COMPLETELYRANDOM = completelyRandom;
 	int width = 800; int height = 800;
 	Heatmap *heat = new Heatmap(width, height);
 	
+	/* pixels TArray is populated with the data from the generated heatmap image*/
 	this->pixels.Empty();
 
 	for (int y = 0; y < height; y++) {
@@ -66,6 +72,7 @@ void ARoadGenerator::CreateRandomHeatmapAndApplyToPlane(UProceduralMeshComponent
 		}
 	}
 
+	/* create texture and apply it to the plane*/
 	auto Texture = ImageHandler::PixelsToTexture(this->pixels, width, height);
 
 	if (Texture == nullptr) {
@@ -78,18 +85,22 @@ void ARoadGenerator::CreateRandomHeatmapAndApplyToPlane(UProceduralMeshComponent
 	this->heatmap = heat;
 }
 
-bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoint)
+// Main algorithm for creating the 3D roads
+bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness)
 {
 	if (this->heatmap == nullptr)
 		return false;
 	
+	/* The boundary for generation is calculated from the selected region. divide by 100 to transform units*/
 	Config::minx = -abs((regionStartPoint.X/100) - (regionEndPoint.X/100)) / 2;
 	Config::maxx = +abs((regionStartPoint.X/100) - (regionEndPoint.X/100)) / 2;
 
 	Config::miny = -abs((regionStartPoint.Y/100) - (regionEndPoint.Y/100)) / 2;
 	Config::maxy = +abs((regionStartPoint.Y/100) - (regionEndPoint.Y/100)) / 2;
 
+	Config::STRAIGHTNESS = straightness;
 
+	/* generation algorithm starts here*/
 	PriorityQueue<Segment*> priorityQ([](const Segment* s) { return s->t; });
 	std::vector<Segment*> initialSegments = makeInitialSegments();
 
@@ -105,10 +116,12 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 	while (!priorityQ.empty() && segments.size() < Config::SEGMENT_COUNT_LIMIT) {
 		generationStep(priorityQ, segments, qTree, *(this->heatmap));
 	}
+	/* generation algorithm ends here*/
 
+	UE_LOG(LogTemp, Warning, TEXT("Number of segments created: %d"), segments.size());
+
+	/* Each segment is transformed back to world units and offset of midPoint is added to it */
 	FVector midPoint = (regionStartPoint + regionEndPoint) / 2;
-	
-	UE_LOG(LogTemp, Warning, TEXT("segments craeted %d"), segments.size());
 
 	for (auto& segment : segments) {
 		
@@ -120,6 +133,7 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 	return true;
 }
 
+// Creates lists of starting and ending points from the segments generated
 void ARoadGenerator::RoadSegmentsToStartAndEndPoints(TArray<FVector>& startPoints, TArray<FVector>& endPoints, float z)
 {
 	startPoints.Empty();
@@ -129,5 +143,4 @@ void ARoadGenerator::RoadSegmentsToStartAndEndPoints(TArray<FVector>& startPoint
 		startPoints.Add(*(new FVector(segment->start.x,  segment->start.y, z)));
 		endPoints.Add(*(new FVector(segment->end.x, segment->end.y, z)));
 	}
-
 }

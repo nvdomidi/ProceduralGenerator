@@ -185,11 +185,11 @@ public:
 
 };
 
-
+/* This class is used to store the heatmap image data in the form of a shared pointer to an unsigned char[]*/
 class Heatmap {
 public:
 
-	double offset_x1, offset_x2, offset_y1, offset_y2;
+	/* these variables are */
 	bool completely_random;
 	
 	std::unique_ptr<unsigned char[]> image;
@@ -197,35 +197,34 @@ public:
 	int height{};
 
 	// Copy constructor
-	Heatmap(const Heatmap& other) : width(other.width), height(other.height), offset_x1(other.offset_x1),
-		offset_x2(other.offset_x2), offset_y1(other.offset_y1),
-		offset_y2(other.offset_y2), completely_random(other.completely_random) {
+	Heatmap(const Heatmap& other) : width(other.width), height(other.height),
+		completely_random(other.completely_random) {
 		image = std::make_unique<unsigned char[]>(width * height);
 		std::copy(other.image.get(), other.image.get() + (width * height), image.get());
 	}
 
-
-
+	// This constructor is used to create a random Heatmap
 	Heatmap(int width, int height) : width(width), height(height) {
+		
 		image = std::make_unique<unsigned char[]>(width * height);
+		
+		/* random parameters for simplex noise*/
 		std::random_device rd;
 		std::mt19937 generator(rd());
 		std::uniform_real_distribution<double> distribution(0.0, 300.0);
 		std::uniform_real_distribution<double> distribution2(50.0, 300.0);
-
+		double offset_x1 = distribution(generator);
+		double offset_x2 = distribution(generator);
+		double offset_y1 = distribution(generator);
+		double offset_y2 = distribution(generator);
 
 		double denominator = distribution2(generator);
 
+		/* This changes the scale. If not set to random, the noise will be zoomed in and appear less noisy*/
 		if (Config::COMPLETELYRANDOM)
 			denominator /= 10;
 
-		offset_x1 = distribution(generator);
-		offset_x2 = distribution(generator);
-		offset_y1 = distribution(generator);
-		offset_y2 = distribution(generator);
-
-
-
+		/* Iterate over pixels and create the noisy image */
 		for (int y = 0; y < height; y++) {
 			for (int x = 0; x < width; x++) {
 
@@ -238,46 +237,40 @@ public:
 		}
 	}
 
+	// This constructor is used after an image is loaded from the disk
 	Heatmap(unsigned char* loadedImage, int width, int height) : width(width), height(height) {
 		image = std::unique_ptr<unsigned char[]>(loadedImage);
 	}
 
+	// Returns the heatmap image
 	std::unique_ptr<unsigned char[]> getImage() {
 		return std::move(image);
 	}
 
+	// Set the heatmap image
 	void setImage(std::unique_ptr<unsigned char[]> img) {
 		image = std::move(img);
 	}
 
+	// Takes segment as input and calculates the population along it
 	double popOnRoad(const Segment& r) {
 		return (populationAt(r.start.x, r.start.y) + populationAt(r.end.x, r.end.y)) / 2.0;
 	}
 
+	// Transforms (x,y) real coordinates to image coordinates from the heatmap
 	double populationAt(double x, double y) {
 		// To generate title page of the presentation: if(x < 7000 && y < 3500 && x > -7000 && y > 2000) return 0; else if(1) return Math.random()/4+config.NORMAL_BRANCH_POPULATION_THRESHOLD;
-
-
+		
 		if (x < Config::minx || x > Config::maxx || y < Config::miny || y > Config::maxy)
 			return 0.0;
-
-
-		//int newx = static_cast<int>((x - Config::minx) * (this->width / (Config::maxx - Config::minx)));
 		
 		int newx = static_cast<int>((Config::maxx - x) * (this->width / (Config::maxx - Config::minx)));
 
 		int newy = static_cast<int>((Config::maxy - y) * (this->height / (Config::maxy - Config::miny)));
 		int idx = newy * width + newx;
-
-		/*UE_LOG(LogTemp, Warning, TEXT("We want to see population at: %f, %f"), x, y);
-		UE_LOG(LogTemp, Warning, TEXT("the image coords newx, newy: %d, %d"), newx, newy);
-		UE_LOG(LogTemp, Warning, TEXT("The index: %d"), idx);
-		UE_LOG(LogTemp, Warning, TEXT("The image size: %d"), (this->width * this->height));*/
-
 		auto aa = this->image[idx];
+
 		return static_cast<double>(aa) / 255.0;
-
-
 	}
 };
 

@@ -2,7 +2,7 @@
 
 #pragma once
 
-
+#include "ProcSim/Utils/Straightness.h"
 #include "ProcSim/MapGen/Quadtree.h"
 #include "ProcSim/MapGen/Math.h"
 #include "ProcSim/MapGen/MapGen.h"
@@ -31,13 +31,11 @@ public:
 
 	/* Create Roads after heatmap is created */
 	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
-	bool CreateRoads(FVector regionStartPoint, FVector regionEndPoint);
+	bool CreateRoads(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness);
 
 	/* Segments to splines */
 	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
 	void RoadSegmentsToStartAndEndPoints(TArray<FVector>& startPoints, TArray<FVector>& endPoints, float z = 40.0f);
-
-	//const Config::STRAIGHTNESS_ENUM STRAIGHTNESS = Config::STRAIGHTNESS_ENUM::STRAIGHT
 
 	UPROPERTY()
 	TArray<uint8> pixels;

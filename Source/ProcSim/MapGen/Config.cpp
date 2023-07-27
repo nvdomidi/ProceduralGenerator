@@ -27,24 +27,32 @@ double Config::miny = -20000;
 double Config::maxx = 20000;
 double Config::maxy = 20000;
 bool Config::COMPLETELYRANDOM = true;
-const Config::STRAIGHTNESS_ENUM Config::STRAIGHTNESS = Config::STRAIGHTNESS_ENUM::CURVED;
+ESTRAIGHTNESS Config::STRAIGHTNESS = ESTRAIGHTNESS::SE_STRAIGHT;
 
 double Config::RANDOM_BRANCH_ANGLE() {
-    if (Config::STRAIGHTNESS == Config::STRAIGHTNESS_ENUM::CURVED)
+    switch (Config::STRAIGHTNESS) {
+    case ESTRAIGHTNESS::SE_CURVED:
         return Math::randomNearCubic(5);
-    if (Config::STRAIGHTNESS == Config::STRAIGHTNESS_ENUM::STRAIGHT)
+    case ESTRAIGHTNESS::SE_STRAIGHT:
         return Math::randomNearCubic(3);
-    if (Config::STRAIGHTNESS == Config::STRAIGHTNESS_ENUM::VERYSTRAIGHT)
+    case ESTRAIGHTNESS::SE_VERYSTRAIGHT:
         return Math::randomNearCubic(1);
+    default:
+        return Math::randomNearCubic(3);
+    }
 }
 
 double Config::RANDOM_STRAIGHT_ANGLE() {
-    if (Config::STRAIGHTNESS == Config::STRAIGHTNESS_ENUM::CURVED)
+    switch (Config::STRAIGHTNESS) {
+    case ESTRAIGHTNESS::SE_CURVED:
         return Math::randomNearCubic(20);
-    if (Config::STRAIGHTNESS == Config::STRAIGHTNESS_ENUM::STRAIGHT)
+    case ESTRAIGHTNESS::SE_STRAIGHT:
         return Math::randomNearCubic(15);
-    if (Config::STRAIGHTNESS == Config::STRAIGHTNESS_ENUM::VERYSTRAIGHT)
+    case ESTRAIGHTNESS::SE_VERYSTRAIGHT:
         return Math::randomNearCubic(3);
+    default:
+        return Math::randomNearCubic(15);
+    }
 }
 
 const char* Config::IMGPATH = "";
