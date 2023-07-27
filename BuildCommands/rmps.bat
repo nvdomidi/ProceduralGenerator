@@ -1,0 +1,6 @@
+rmdir /s /q "J:\Unreal Engine Projects\ProcSim\Binaries"
+rmdir /s /q "J:\Unreal Engine Projects\ProcSim\Intermediate"
+rmdir /s /q "J:\Unreal Engine Projects\ProcSim\Saved"
+rmdir /s /q "J:\Unreal Engine Projects\ProcSim\.vs"
+rmdir /s /q "J:\Unreal Engine Projects\ProcSim\DerivedDataCache"
+del /s /q "J:\Unreal Engine Projects\ProcSim\ProcSim.sln"
