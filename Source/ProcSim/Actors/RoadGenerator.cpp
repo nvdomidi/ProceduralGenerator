@@ -24,6 +24,9 @@ void ARoadGenerator::ChooseImageAndApplyToPlane(UProceduralMeshComponent* PlaneR
 {
 	FString filePath = ImageHandler::ChooseImageFromFileDialog();
 
+	if (filePath.IsEmpty())
+		return;
+
 	int outWidth;
 	int outHeight;
 

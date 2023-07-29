@@ -29,10 +29,11 @@ FString ImageHandler::ChooseImageFromFileDialog()
             OutFileNames
         );
 
-        return OutFileNames[0];
+        if (OutFileNames.IsValidIndex(0))
+            return OutFileNames[0];
 	}
 
-	return FString();
+	return FString("");
 }
 
 bool ImageHandler::LoadImageFromFile(const FString& FilePath, TArray<uint8>& OutPixels, int32& OutWidth, int32& OutHeight)
