@@ -22,6 +22,11 @@ public:
         return { scalar * x, scalar * y };
     }
 
+    Point operator/(const double scalar) {
+        return { x / scalar, y / scalar };
+    }
+
+
     Point operator+(const Point& other) {
         return {x+other.x, y+other.y};
     }
@@ -30,10 +35,19 @@ public:
         return { x - other.x, y - other.y };
     }
 
+    bool operator==(const Point& other) {
+        return (x == other.x && y == other.y);
+    }
+    
+    double length() const {
+        return sqrt(pow(x, 2) + pow(y, 2));
+    }
+
 
     double x;
     double y;
 };
+
 
 struct LineSegmentIntersection {
     double x;

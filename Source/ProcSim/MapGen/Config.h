@@ -1,5 +1,5 @@
 #pragma once
-#include "ProcSim/Utils/Straightness.h"
+#include "ProcSim/Utils/RoadData.h"
 
 class Config {
 public:
@@ -7,6 +7,8 @@ public:
     static const double HIGHWAY_SEGMENT_LENGTH;
     static const double DEFAULT_SEGMENT_WIDTH;
     static const double HIGHWAY_SEGMENT_WIDTH;
+    static double DEFAULT_ROADPART_LENGTH;
+    static const double DEFAULT_HEIGHT;
 
     /** branch with 90° angle + randomness */
     static double RANDOM_BRANCH_ANGLE();
@@ -26,7 +28,7 @@ public:
     /** ignore intersections with less than this degrees angle */
     static const int MINIMUM_INTERSECTION_DEVIATION;
     /** stop generation after x steps */
-    static const int SEGMENT_COUNT_LIMIT;
+    static int SEGMENT_COUNT_LIMIT;
     /** maximum distance to connect roads */
     static const int ROAD_SNAP_DISTANCE;
 

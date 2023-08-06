@@ -1,8 +1,10 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-#include <memory>
-
 #include "RoadGenerator.h"
+#include "ProcSim/Actors/ProceduralMeshMaker.h"
+
+#include <memory>
 #include "ProcSim/Utils/ImageHandler.h"
+
 
 // Sets default values
 ARoadGenerator::ARoadGenerator()
@@ -41,7 +43,7 @@ void ARoadGenerator::ChooseImageAndApplyToPlane(UProceduralMeshComponent* PlaneR
 			return;
 		}
 
-		ImageHandler::ApplyTextureToProceduralMeshComponent(PlaneReference, Texture);
+		ImageHandler::ApplyTextureToProceduralMeshComponent(PlaneReference, Texture, "/Game/Materials/HeatmapMaterial");
 	}
 
 	/* image is stored as shared pointer to unsigned character array */
@@ -83,13 +85,13 @@ void ARoadGenerator::CreateRandomHeatmapAndApplyToPlane(UProceduralMeshComponent
 		return;
 	}
 
-	ImageHandler::ApplyTextureToProceduralMeshComponent(PlaneReference, Texture);
+	ImageHandler::ApplyTextureToProceduralMeshComponent(PlaneReference, Texture, FString("/Game/Materials/HeatmapMaterial"));
 
 	this->heatmap = heat;
 }
 
 // Main algorithm for creating the 3D roads
-bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness)
+bool ARoadGenerator::CreateSegmentsAndIntersections(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness, int numSegments)
 {
 	if (this->heatmap == nullptr)
 		return false;
@@ -102,9 +104,11 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 	Config::maxy = +abs((regionStartPoint.Y/100) - (regionEndPoint.Y/100)) / 2;
 
 	Config::STRAIGHTNESS = straightness;
+	Config::SEGMENT_COUNT_LIMIT = numSegments;
 
 	/* generation algorithm starts here*/
 	PriorityQueue<Segment*> priorityQ([](const Segment* s) { return s->t; });
+	DebugData debugData;
 	std::vector<Segment*> initialSegments = makeInitialSegments();
 
 	for (auto initialSegment : initialSegments) {
@@ -117,33 +121,129 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 			4e4 }), Config::QUADTREE_MAX_OBJECTS, Config::QUADTREE_MAX_LEVELS);
 
 	while (!priorityQ.empty() && segments.size() < Config::SEGMENT_COUNT_LIMIT) {
-		generationStep(priorityQ, segments, qTree, *(this->heatmap));
+		generationStep(priorityQ, segments, qTree, debugData, intersections, *(this->heatmap));
 	}
 	/* generation algorithm ends here*/
 
 	UE_LOG(LogTemp, Warning, TEXT("Number of segments created: %d"), segments.size());
+	UE_LOG(LogTemp, Warning, TEXT("Number of intersections: %d, intersectionsradius: %d, snaps: %d"),
+		debugData.intersections.size(), debugData.intersectionsRadius.size(), debugData.snaps.size());
 
-	/* Each segment is transformed back to world units and offset of midPoint is added to it */
 	FVector midPoint = (regionStartPoint + regionEndPoint) / 2;
 
-	for (auto& segment : segments) {
-		
-		segment->start = segment->start * 100 + Point(midPoint.X, midPoint.Y);
-		segment->end = segment->end * 100 + Point(midPoint.X, midPoint.Y);
+	// segments to unreal engine coordinates and remove segments outside of range specified
+	bringSegmentsIntoUnrealEngineCoordinatesAndRemoveOutsideOfRegion(segments, regionStartPoint, regionEndPoint);
+	// 
+	// intersections might be spawned with equal positions
+	removeDuplicateIntersections(intersections);
 
-	}
+	// merge intersections close to eachother
+	mergeCloseIntersections(intersections);
+
+	// bring intersections to unreal engine coordinates ( to cm + offest )
+	bringIntersectionsIntoUnrealEngineCoordinates(intersections, midPoint);
+
+	// cut the roads leading into the intersection
+	//cutRoadsLeadingIntoIntersections(segments, intersections);
+
+	// make procuderal intersections for twoway, threeway and fourway
+
+
+	/* use this to visualize the intersections*/
+	CreateIntersections(midPoint);
+
+	/* fix ordering of roads in Z value*/
+	findOrderOfRoads(segments);
+
+	/* generate intersections procedural mesh */
+	TArray<FVector> startPoints, endPoints;
+	TArray<FMetaRoadData> roadData;
+	RoadSegmentsToStartAndEndPoints(startPoints, endPoints, roadData, 40.0f);
+
+	CreateProceduralMeshForRoads(startPoints, endPoints, roadData);
 
 	return true;
 }
 
+void ARoadGenerator::CreateProceduralMeshForRoads(TArray<FVector> startPoints, TArray<FVector> endPoints, TArray<FMetaRoadData> roadData)
+{
+
+
+	this->ProceduralMeshMaker = Cast<AProceduralMeshMaker>(GetWorld()->SpawnActor<AProceduralMeshMaker>(FActorSpawnParameters{}));
+	this->ProceduralMeshMaker->GenerateMesh(startPoints, endPoints, roadData);
+}
+
+// you have to calls this first before CreateIntersections
+void ARoadGenerator::SetIntersectionBlueprints(TSubclassOf<AActor> TwoWay, TSubclassOf<AActor> ThreeWay,
+	TSubclassOf<AActor> FourWay, TSubclassOf<AActor> MoreThanFourWay)
+{
+	this->TwoWayBlueprint = TwoWay;
+	this->ThreeWayBlueprint = ThreeWay;
+	this->FourWayBlueprint = FourWay;
+	this->MoreThanFourWayBlueprint = MoreThanFourWay;
+}
+
+// create intersections and spawn something on them
+void ARoadGenerator::CreateIntersections(FVector midPoint)
+{
+	// first of all, lets create different markers for the different intersections
+
+	for (auto intersection : intersections) {
+		
+		/* two way*/
+		//if (intersection->branches.size() == 2) {
+			//GetWorld()->SpawnActor<AActor>(this->TwoWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+			//	static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
+		//}
+		//else if (intersection->branches.size() == 3) {
+			//GetWorld()->SpawnActor<AActor>(this->ThreeWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+			//	static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
+		//}
+		if (intersection->branches.size() >= 2) {
+			float height{};
+			int maxOrder{ -999999 };
+			for (auto branch : intersection->branches) {
+				if (intersection->ID == branch->startIntersectionID) {
+					if (branch->startOrder > maxOrder)
+						maxOrder = branch->startOrder;
+				}
+				else {
+					if (branch->endOrder > maxOrder)
+						maxOrder = branch->endOrder;
+				}
+			}
+			UE_LOG(LogTemp, Warning, TEXT("maxOrder: %d"), maxOrder);
+			GetWorld()->SpawnActor<AActor>(this->FourWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+				static_cast<float>(intersection->position.y), 90.0f }, FRotator{}, FActorSpawnParameters{});
+		}
+		else if (intersection->branches.size() > 4) {
+			//GetWorld()->SpawnActor<AActor>(this->MoreThanFourWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+			//	static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
+		}
+
+		/*GetWorld()->SpawnActor<AActor>(this->RoadBlueprint, FVector{ static_cast<float>(intersection->position.x),
+			static_cast<float>(intersection->position.y), 40.0f }, FRotator{}, FActorSpawnParameters{});*/
+	}
+
+}
+
 // Creates lists of starting and ending points from the segments generated
-void ARoadGenerator::RoadSegmentsToStartAndEndPoints(TArray<FVector>& startPoints, TArray<FVector>& endPoints, float z)
+void ARoadGenerator::RoadSegmentsToStartAndEndPoints(TArray<FVector>& startPoints, TArray<FVector>& endPoints,
+	TArray<FMetaRoadData>& roadData, float z)
 {
 	startPoints.Empty();
 	endPoints.Empty();
+	roadData.Empty();
 
 	for (auto segment : this->segments) {
-		startPoints.Add(*(new FVector(segment->start.x,  segment->start.y, z)));
-		endPoints.Add(*(new FVector(segment->end.x, segment->end.y, z)));
+		startPoints.Add(*(new FVector(segment->start.x,  segment->start.y, z + segment->startOrder)));
+		endPoints.Add(*(new FVector(segment->end.x, segment->end.y, z + segment->endOrder)));
+		roadData.Add(FMetaRoadData{ segment->q.highway, static_cast<float>(segment->width)  * 100});
+
 	}
+}
+
+void ARoadGenerator::GenerateMeshIntersections(AProceduralMeshMaker* ProcMeshMaker)
+{
+	ProcMeshMaker->GenerateMeshIntersections(intersections);
 }

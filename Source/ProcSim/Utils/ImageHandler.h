@@ -28,5 +28,6 @@ public:
 
 	static UTexture2D* PixelsToTexture(const TArray<uint8>& Pixels, const int32 Width, const int32 Height);
 
-	static bool ApplyTextureToProceduralMeshComponent(UProceduralMeshComponent* ProceduralMeshComponent , UTexture2D* Texture);
+	static bool ApplyTextureToProceduralMeshComponent(UProceduralMeshComponent* ProceduralMeshComponent,
+		UTexture2D* Texture, FString MaterialPath);
 };

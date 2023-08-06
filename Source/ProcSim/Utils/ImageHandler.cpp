@@ -108,10 +108,10 @@ UTexture2D* ImageHandler::PixelsToTexture(const TArray<uint8>& Pixels, const int
 
 }
 
-bool ImageHandler::ApplyTextureToProceduralMeshComponent(UProceduralMeshComponent* ProceduralMeshComponent, UTexture2D* Texture)
+bool ImageHandler::ApplyTextureToProceduralMeshComponent(UProceduralMeshComponent* ProceduralMeshComponent,
+    UTexture2D* Texture, FString MaterialPath)
 {
-    FString HeatmapMaterialPath = "/Game/Materials/HeatmapMaterial";
-    UObject* LoadedMaterial = StaticLoadObject(UMaterialInterface::StaticClass(), NULL, *HeatmapMaterialPath);
+    UObject* LoadedMaterial = StaticLoadObject(UMaterialInterface::StaticClass(), NULL, *MaterialPath);
 
     // Check if the material is successfully loaded
     if (LoadedMaterial && LoadedMaterial->IsA(UMaterialInterface::StaticClass()))
@@ -122,7 +122,7 @@ bool ImageHandler::ApplyTextureToProceduralMeshComponent(UProceduralMeshComponen
 
         if (DynamicMaterial)
         {
-            DynamicMaterial->SetTextureParameterValue(FName("Heatmap"), Texture);
+            DynamicMaterial->SetTextureParameterValue(FName("Texture"), Texture);
             // Set the dynamic material instance to the mesh component
             ProceduralMeshComponent->SetMaterial(0, DynamicMaterial);
 

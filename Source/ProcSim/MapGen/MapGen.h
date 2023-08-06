@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <vector>
+#include <unordered_set>
 #include <functional>
 #include <algorithm>
 #include <climits>
@@ -19,9 +20,21 @@ struct MetaInfo {
 	bool severed;
 };
 
+class Intersection;
+
 class Segment {
 
 public:
+	/** each segment has a unique ID and a static int to track the current generated ID **/
+	static int IDTracker;
+	int ID{};
+	/* these positions are used two give width to the segment */
+	float startOrder{ -1 };
+	float endOrder{ -1 };
+	/* start intersection and end intersection */
+	int startIntersectionID{ -1 };
+	int endIntersectionID{ -1 };
+
 	/** time-step delay before this road is evaluated */
 	double t;
 	/** meta-information relevant to global goals */
@@ -44,6 +57,8 @@ public:
 
 	Segment(Point start, Point end, double t = 0, MetaInfo q = {}) : start(start), end(end), t(t), q(q) {
 		width = q.highway ? Config::HIGHWAY_SEGMENT_WIDTH : Config::DEFAULT_SEGMENT_WIDTH;
+		ID = IDTracker;
+		IDTracker += 1;
 	}
 
 	double dir() {
@@ -117,55 +132,10 @@ public:
    * @param segmentList the full list of all segments (new segment will be added here)
    * @param qTree quadtree for faster finding of segments (new segment will be added here)
    */
-	void split(Point point, Segment* thirdSegment, std::vector<Segment*>& segmentList, Quadtree<Segment*>& qTree) {
-		Segment* splitPart = clone();
-		bool startIsBackwards = this->startIsBackwards();
-		segmentList.push_back(splitPart);
-		Bounds pRect = splitPart->limits();
-		qTree.insert(pRect, splitPart);
-		splitPart->end = point;
-		start = point;
-		splitPart->links_b = links_b;
-		splitPart->links_f = links_f;
 
-		Segment* firstSplit;
-		std::vector<Segment*> fixLinks;
-		Segment* secondSplit;
+	/* this is defined outside of the class because it depends on the Intersection class*/
+	inline void split(Point point, Segment* thirdSegment, std::vector<Segment*>& segmentList, Quadtree<Segment*>& qTree, std::vector<Intersection*>& intersections);
 
-		if (startIsBackwards) {
-			firstSplit = splitPart;
-			secondSplit = this;
-			fixLinks = splitPart->links_b;
-		}
-		else {
-			firstSplit = this;
-			secondSplit = splitPart;
-			fixLinks = splitPart->links_f;
-		}
-		for (auto link : fixLinks) {
-			auto it = std::find(link->links_b.begin(), link->links_b.end(), this);
-
-
-			if (it != link->links_b.end()) {
-				*it = splitPart;
-			}
-			else {
-				it = std::find(link->links_f.begin(), link->links_f.end(), this);
-				if (it == link->links_f.end())
-				{
-					throw std::runtime_error("impossible, link is either backwards or forwards");
-				}
-
-				*it = splitPart;
-			}
-
-
-		}
-		firstSplit->links_f = { thirdSegment, secondSplit };
-		secondSplit->links_b = { thirdSegment, firstSplit };
-		thirdSegment->links_f.push_back(firstSplit);
-		thirdSegment->links_f.push_back(secondSplit);
-	}
 
 	Segment* clone() {
 		return new Segment(start, end, t, q);
@@ -184,6 +154,97 @@ public:
 	}
 
 };
+
+int Segment::IDTracker = 0;
+
+class Intersection {
+
+	friend class Segment;
+public:
+	std::vector<Segment*> branches{};
+	Point position{};
+
+	static int IDTracker;
+	int ID{};
+
+	Intersection(std::vector<Segment*> branches, Point position) : branches(branches), position(position) {
+		ID = IDTracker;
+		for (auto branch : branches) {
+			bool isStart = (branch->start - position).length() < (branch->end - position).length();
+			if (isStart)
+				branch->startIntersectionID = ID;
+			else
+				branch->endIntersectionID = ID;
+		}
+
+		IDTracker++;
+	}
+
+	bool IsAtQueriedPosition(Point pos) { return (this->position == pos); };
+
+	void printIntersection() {
+		UE_LOG(LogTemp, Warning, TEXT("Intersection: %d, Position is: (%f,%f)"), branches.size(), position.x, position.y);
+	}
+};
+
+int Intersection::IDTracker = 0;
+
+void Segment::split(Point point, Segment* thirdSegment, std::vector<Segment*>& segmentList, Quadtree<Segment*>& qTree, std::vector<Intersection*>& intersections) {
+	
+	Segment* splitPart = clone();
+	bool startIsBackwards = this->startIsBackwards();
+	segmentList.push_back(splitPart);
+	Bounds pRect = splitPart->limits();
+	qTree.insert(pRect, splitPart);
+	splitPart->end = point;
+	start = point;
+	splitPart->links_b = links_b;
+	splitPart->links_f = links_f;
+
+	Segment* firstSplit;
+	std::vector<Segment*> fixLinks;
+	Segment* secondSplit;
+
+	if (startIsBackwards) {
+		firstSplit = splitPart;
+		secondSplit = this;
+		fixLinks = splitPart->links_b;
+	}
+	else {
+		firstSplit = this;
+		secondSplit = splitPart;
+		fixLinks = splitPart->links_f;
+	}
+	for (auto link : fixLinks) {
+		auto it = std::find(link->links_b.begin(), link->links_b.end(), this);
+
+
+		if (it != link->links_b.end()) {
+			*it = splitPart;
+		}
+		else {
+			it = std::find(link->links_f.begin(), link->links_f.end(), this);
+			if (it == link->links_f.end())
+			{
+				throw std::runtime_error("impossible, link is either backwards or forwards");
+			}
+
+			*it = splitPart;
+		}
+
+
+	}
+	firstSplit->links_f = { thirdSegment, secondSplit };
+	secondSplit->links_b = { thirdSegment, firstSplit };
+	thirdSegment->links_f.push_back(firstSplit);
+	thirdSegment->links_f.push_back(secondSplit);
+
+	/* Adding new intersection */
+	Intersection* intersection = new Intersection(std::vector<Segment*>{firstSplit, secondSplit, thirdSegment}, point);
+	intersections.push_back(intersection);
+
+}
+
 
 /* This class is used to store the heatmap image data in the form of a shared pointer to an unsigned char[]*/
 class Heatmap {
@@ -326,13 +387,27 @@ struct GeneratorResult {
 	Quadtree<Segment> qTree;
 };
 
-bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtree<Segment*>& qTree);
+bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtree<Segment*>& qTree,
+	DebugData& debugData, std::vector<Intersection*>& intersections);
+
 std::vector<Segment*> globalGoalsGenerate(Segment* previousSegment, Heatmap heatmap);
+
 std::vector<Segment*> makeInitialSegments();
 
 void generationStep(
 	PriorityQueue<Segment*>& priorityQ,
 	std::vector<Segment*>& segments,
 	Quadtree<Segment*>& qTree,
+	DebugData& debugData,
+	std::vector<Intersection*>& intersections,
 	Heatmap heatmap
 );
+
+void findOrderAtEnd(Segment* segment, bool isStart);
+void findOrderOfRoads(std::vector<Segment*>& segments);
+void bringSegmentsIntoUnrealEngineCoordinatesAndRemoveOutsideOfRegion(std::vector<Segment*>& segments, FVector regionStartPoint, FVector regionEndPoint);
+void removeDuplicateIntersections(std::vector<Intersection*>& intersections);
+void mergeCloseIntersections(std::vector<Intersection*>& intersections);
+void bringIntersectionsIntoUnrealEngineCoordinates(std::vector<Intersection*>& intersections, FVector midPoint);
+void cutRoadFromSpecifiedEndBySpecifiedAmount(Segment* segment, bool isStart, double amount);
+void cutRoadsLeadingIntoIntersections(std::vector<Segment*>& segments, std::vector<Intersection*> intersections);

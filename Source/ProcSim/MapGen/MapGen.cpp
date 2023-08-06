@@ -1,11 +1,12 @@
 #include "MapGen.h"
 
 
-bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtree<Segment*>& qTree) {
+bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtree<Segment*>& qTree,
+	DebugData& debugData, std::vector<Intersection*>& intersections) {
+
 	if (Config::IGNORE_CONFLICTS) return true;
 
 	Action action = { 0, nullptr, 0.0 };
-	DebugData* debugData = new DebugData();
 
 	for (auto other : qTree.retrieve(segment->limits())) {
 
@@ -20,7 +21,7 @@ bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtre
 					action.t = intersection->t;
 					action.priority = 4;
 
-					action.func = [other, segment, &segments, &qTree, intersection, &debugData]() -> bool {
+					action.func = [other, segment, &segments, &qTree, intersection, &debugData, &intersections]() -> bool {
 
 
 
@@ -29,10 +30,10 @@ bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtre
 							return false;
 						}
 						Point intersectionPoint{ intersection->x, intersection->y };
-						other->split(intersectionPoint, segment, segments, qTree);
+						other->split(intersectionPoint, segment, segments, qTree, intersections);
 						segment->end = Point{ intersection->x, intersection->y };
 						segment->q.severed = true;
-						(*debugData).intersections.push_back(*intersection);
+						(debugData).intersections.push_back(*intersection);
 
 						return true;
 					};
@@ -46,7 +47,7 @@ bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtre
 				Point point = other->end;
 				action.priority = 3;
 
-				action.func = [point, other, segment, &segments, &qTree, &debugData]() {
+				action.func = [point, other, segment, &segments, &qTree, &debugData, &intersections]() {
 					segment->end = point;
 					segment->q.severed = true;
 					auto links = other->startIsBackwards() ? other->links_f : other->links_b;
@@ -71,7 +72,6 @@ bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtre
 						if (!front)
 						{
 							link->links_b.push_back(segment);
-
 						}
 						else {
 							link->links_f.push_back(segment);
@@ -83,7 +83,15 @@ bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtre
 
 					links.push_back(segment);
 					segment->links_f.push_back(other);
-					(*debugData).snaps.push_back({ point.x, point.y });
+					(debugData).snaps.push_back({ point.x, point.y });
+
+					/* adding the newly created segment to the previously created intersection*/
+					for (auto intersection : intersections) {
+						if (intersection->IsAtQueriedPosition(point)) {
+							intersection->branches.push_back(segment);
+							break;
+						}
+					}
 
 
 					return true;
@@ -101,7 +109,7 @@ bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtre
 				Point point = distanceToLineResult.pointOnLine;
 				action.priority = 2;
 
-				action.func = [segment, point, other, &segments, &qTree, &debugData]() {
+				action.func = [segment, point, other, &segments, &qTree, &debugData, &intersections]() {
 					segment->end = point;
 					segment->q.severed = true;
 					// if intersecting lines are too closely aligned don't continue
@@ -109,8 +117,8 @@ bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtre
 						return false;
 					}
 
-					other->split(point, segment, segments, qTree);
-					(*debugData).intersectionsRadius.push_back(Point{ point.x, point.y });
+					other->split(point, segment, segments, qTree, intersections);
+					(debugData).intersectionsRadius.push_back(Point{ point.x, point.y });
 					return true;
 				};
 
@@ -139,7 +147,9 @@ std::vector<Segment*> globalGoalsGenerate(Segment* previousSegment, Heatmap heat
 		};
 
 		auto templateBranch = [=](double direction) {
-			return templateFunc(direction, Config::DEFAULT_SEGMENT_LENGTH, previousSegment->q.highway ? Config::NORMAL_BRANCH_TIME_DELAY_FROM_HIGHWAY : 0, &previousSegment->q);
+			return templateFunc(direction, Config::DEFAULT_SEGMENT_LENGTH,
+				previousSegment->q.highway ? Config::NORMAL_BRANCH_TIME_DELAY_FROM_HIGHWAY : 0,
+				new MetaInfo{ 0, previousSegment->q.color, previousSegment->q.severed });
 		};
 
 		Segment* continueStraight = templateContinue(0);
@@ -169,6 +179,7 @@ std::vector<Segment*> globalGoalsGenerate(Segment* previousSegment, Heatmap heat
 				else {
 					if (std::rand() / static_cast<double>(RAND_MAX) < Config::HIGHWAY_BRANCH_PROBABILITY) {
 						newBranches.push_back(templateContinue(+90 + Config::RANDOM_BRANCH_ANGLE()));
+						
 					}
 				}
 			}
@@ -260,25 +271,362 @@ void generationStep(
 	PriorityQueue<Segment*>& priorityQ,
 	std::vector<Segment*>& segments,
 	Quadtree<Segment*>& qTree,
+	DebugData& debugData,
+	std::vector<Intersection*>& intersections,
 	Heatmap heatmap
 ) {
 	Segment* minSegment = priorityQ.dequeue();
 
 	if (minSegment == nullptr) throw std::runtime_error("no segment remaining");
-	bool accepted = localConstraints(minSegment, segments, qTree);
+	bool accepted = localConstraints(minSegment, segments, qTree, debugData, intersections);
 
 	if (accepted) {
 
 		if (minSegment->setupBranchLinks != nullptr) {
 			minSegment->setupBranchLinks();
 		};
+		/* find the intersections here */
+		// 1. If the back links are more than one = intersection
+		if (minSegment->links_b.size() > 1) {
+			std::vector<Segment*> intersectionLinks;
+			for (auto segment : minSegment->links_b)
+				intersectionLinks.push_back(segment);
+			intersectionLinks.push_back(minSegment);
+
+			intersections.push_back(new Intersection{ intersectionLinks, minSegment->start });
+		}
+		// 2. If the back links are only one, check the angle between them
+		else if (minSegment->links_b.size() == 1) {
+			double angle = Math::angleBetween(minSegment->end - minSegment->start,
+				minSegment->links_b[0]->end - minSegment->links_b[0]->start);
+
+			// if angle is more than 20 degrees = intersection
+			if (angle > 20 || angle < -20) {
+				std::vector<Segment*> intersectionLinks{minSegment, minSegment->links_b[0]};
+				intersections.push_back(new Intersection{intersectionLinks, minSegment->start});
+			}
+
+		}
+		// 3. repeat the same with front
+		if (minSegment->links_f.size() > 1) {
+			std::vector<Segment*> intersectionLinks;
+			for (auto segment : minSegment->links_f)
+				intersectionLinks.push_back(segment);
+			intersectionLinks.push_back(minSegment);
+
+			intersections.push_back(new Intersection{ intersectionLinks, minSegment->end });
+		}
+		////
+		else if (minSegment->links_f.size() == 1) {
+			double angle = Math::angleBetween(minSegment->end - minSegment->start,
+				minSegment->links_f[0]->end - minSegment->links_f[0]->start);
+
+			// if angle is more than 20 degrees = intersection
+			if (fmod(angle,180) > 20 || fmod(angle,180) < -20) {
+				std::vector<Segment*> intersectionLinks{minSegment, minSegment->links_f[0]};
+				intersections.push_back(new Intersection{ intersectionLinks, minSegment->end });
+			}
+
+		}
+
+		/* end finding intersections*/
+
 		segments.push_back(minSegment);
 		Bounds minSegmentLimits = minSegment->limits();
 		qTree.insert(minSegmentLimits, minSegment);
 		std::vector<Segment*> newSegments = globalGoalsGenerate(minSegment, heatmap);
 		for (auto newSegment : newSegments) {
+			//smth about inersections here
 			newSegment->t = minSegment->t + 1 + newSegment->t;
 			priorityQ.enqueue(newSegment);
+		}
+	}
+}
+
+void findOrderAtEnd(Segment* segment, bool isStart)
+{
+	std::vector<Segment*> links = (isStart ? segment->links_b : segment->links_f);
+	
+	// if there is no link do nothing
+	if (links.size() < 1) {}
+	// if there is one link set it to 1 + others order
+	if (links.size() == 1) {
+		if (isStart) {
+			if (std::find(links[0]->links_b.begin(), links[0]->links_b.end(), segment) != links[0]->links_b.end()) {
+				segment->startOrder = links[0]->startOrder + 1;
+			}
+			else {
+				segment->startOrder = links[0]->endOrder + 1;
+			}
+		}
+		else {
+			if (std::find(links[0]->links_b.begin(), links[0]->links_b.end(), segment) != links[0]->links_b.end()) {
+				segment->endOrder = links[0]->startOrder + 1;
+			}
+			else {
+				segment->endOrder = links[0]->endOrder + 1;
+			}
+		}
+	}
+
+	if (links.size() == 2) {
+		if (isStart) {
+			// check the angle it has with the other two
+			if (abs(fmod(links[0]->dir(), 180) - fmod(links[1]->dir(), 180)) < 20) {
+				// if its in the backwards links of the other
+				if (std::find(links[0]->links_b.begin(), links[0]->links_b.end(), segment) != links[0]->links_b.end()) {
+					links[0]->startOrder = segment->startOrder + 1;
+				}
+				// if its in the front links of the other
+				else {
+					links[0]->endOrder = segment->startOrder + 1;
+				}
+				// if its in the backwards links of the other
+				if (std::find(links[1]->links_b.begin(), links[1]->links_b.end(), segment) != links[1]->links_b.end()) {
+					links[1]->startOrder = segment->startOrder + 1;
+				}
+				// if its in the front links of the other
+				else {
+					links[1]->endOrder = segment->startOrder + 1;
+				}
+			}
+				
+		}
+		else {
+			// check the angle it has with the other two
+			if (abs(fmod(links[0]->dir(), 180) - fmod(links[1]->dir(), 180)) < 20) {
+				// if its in the backwards links of the other
+				if (std::find(links[0]->links_b.begin(), links[0]->links_b.end(), segment) != links[0]->links_b.end()) {
+					links[0]->startOrder = segment->endOrder + 1;
+				}
+				// if its in the front links of the other
+				else {
+					links[0]->endOrder = segment->endOrder + 1;
+				}
+				// if its in the backwards links of the other
+				if (std::find(links[1]->links_b.begin(), links[1]->links_b.end(), segment) != links[1]->links_b.end()) {
+					links[1]->startOrder = segment->endOrder + 1;
+				}
+				// if its in the front links of the other
+				else {
+					links[1]->endOrder = segment->endOrder + 1;
+				}
+			}
+		}
+	}
+
+	if (links.size() >= 3) {
+		std::vector<std::pair<Segment*, double>> segmentAngles;
+		for (auto link : links) {
+			double angle = abs(fmod(link->dir(), 180) - fmod(segment->dir(), 180));
+			segmentAngles.push_back({ link, angle });
+		}
+
+		auto cmp = [](const std::pair<Segment*, double>& lhs, const std::pair<Segment*, double>& rhs) { return (lhs.second < rhs.second);  };
+		std::sort(segmentAngles.begin(), segmentAngles.end(), cmp);
+
+		int order = 0;
+		if (std::find(segmentAngles[1].first->links_b.begin(), segmentAngles[1].first->links_b.end(), segment) != segmentAngles[1].first->links_b.end()) {
+			order = segmentAngles[1].first->startOrder + 1;
+		}
+		else {
+			order = segmentAngles[1].first->endOrder + 1;
+		}
+
+		if (isStart) {
+			segment->startOrder = order;
+		}
+		else {
+			segment->endOrder = order;
+		}
+		if (std::find(segmentAngles[0].first->links_b.begin(), segmentAngles[0].first->links_b.end(), segment) != segmentAngles[0].first->links_b.end()) {
+			segmentAngles[0].first->startOrder = order;
+		}
+		else {
+			segmentAngles[0].first->endOrder = order;
+		}
+		
+	}
+}
+
+/* it checks roads and gives them a Z ordering based on forwards and backwards links */
+void findOrderOfRoads(std::vector<Segment*>& segments)
+{
+	for (auto segment : segments) {
+		findOrderAtEnd(segment, true);
+		findOrderAtEnd(segment, false);
+	}
+}
+
+void bringSegmentsIntoUnrealEngineCoordinatesAndRemoveOutsideOfRegion(std::vector<Segment*>& segments, FVector regionStartPoint, FVector regionEndPoint)
+{
+	/* Each segment is transformed back to world units and offset of midPoint is added to it */
+	FVector midPoint = (regionStartPoint + regionEndPoint) / 2;
+
+	for (auto& segment : segments) {
+
+		segment->start = segment->start * 100 + Point(midPoint.X, midPoint.Y);
+		segment->end = segment->end * 100 + Point(midPoint.X, midPoint.Y);
+	}
+
+	// find the min and max points
+	double minx, maxx, miny, maxy;
+	if (regionStartPoint.X < regionEndPoint.X) {
+		minx = regionStartPoint.X;
+		maxx = regionEndPoint.X;
+	}
+	else {
+		maxx = regionStartPoint.X;
+		minx = regionEndPoint.X;
+	}
+	if (regionStartPoint.Y < regionEndPoint.Y) {
+		miny = regionStartPoint.Y;
+		maxy = regionEndPoint.Y;
+	}
+	else {
+		maxy = regionStartPoint.Y;
+		miny = regionEndPoint.Y;
+	}
+}
+
+/* remove intersections with the same position */
+void removeDuplicateIntersections(std::vector<Intersection*>& intersections) {
+	std::vector<Point> seenPositions;
+
+	for (size_t i = 0; i < intersections.size(); ++i) {
+		bool isDuplicate = false;
+		for (size_t j = 0; j < seenPositions.size(); ++j) {
+			if (intersections[i]->position == seenPositions[j]) {
+				isDuplicate = true;
+				break;
+			}
+		}
+
+		if (!isDuplicate) {
+			seenPositions.push_back(intersections[i]->position);
+		}
+		else {
+			delete intersections[i]; // Don't forget to deallocate memory if necessary
+			intersections.erase(intersections.begin() + i);
+			--i; // Decrement to adjust for removed element
+		}
+	}
+}
+
+/* merge intersections that are closer than some value */
+void mergeCloseIntersections(std::vector<Intersection*>& intersections) {
+	
+	// lambda function for comparing two intersections based on their distance to origin
+	auto compareIntersectionsBasedOnDistanceToOrigin = [](const Intersection* inter1, const Intersection* inter2) {
+		return (inter1->position.length() < inter2->position.length());
+	};
+
+	// sort the intersections based on their distance to origin
+	std::sort(intersections.begin(), intersections.end(), compareIntersectionsBasedOnDistanceToOrigin);
+
+	// iterate through the intersections
+	for (auto it = intersections.begin(); it != intersections.end() - 1;) {
+		auto thisIntersection = *it;
+		auto nextIntersection = *(it + 1);
+		/* if adjacent intersections are close than some distance */
+		if ((thisIntersection->position - nextIntersection->position).length() < Config::DEFAULT_ROADPART_LENGTH) {
+			/* their position shall be averaged */
+			Point newPosition = (thisIntersection->position + nextIntersection->position) / 2;
+			/* dont include duplicate segments when merging two intersections */
+			std::unordered_set<int> uniqueIDs;
+			std::vector<Segment*> uniqueSegments;
+			/* for the first intersection just include all the branches */
+			for (auto branch : thisIntersection->branches) {
+				uniqueIDs.insert(branch->ID);
+				uniqueSegments.push_back(branch);
+			}
+			/* for the second one, check with the ones already added, if not present then add */
+			for (auto branch : nextIntersection->branches) {
+				if (uniqueIDs.find(branch->ID) != uniqueIDs.end()) {
+					uniqueIDs.insert(branch->ID);
+					uniqueSegments.push_back(branch);
+				}
+			}
+
+			Intersection* newIntersection = new Intersection(uniqueSegments, newPosition);
+			*it = newIntersection;
+
+			UE_LOG(LogTemp, Warning, TEXT("deleted something"));
+			it = intersections.erase(it + 1);
+		}
+		else {
+			++it;
+		}
+	}
+
+}
+
+/* this function brings the intersections into unreal engine coordinates */
+void bringIntersectionsIntoUnrealEngineCoordinates(std::vector<Intersection*>& intersections, FVector midPoint) {
+	for (auto intersection : intersections) {
+		intersection->position = intersection->position * 100 + Point{midPoint.X, midPoint.Y};
+		//for (auto& branch : intersection->branches) {
+		//	branch->start = branch->start * 100 + Point{midPoint.X, midPoint.Y};
+		//	branch->end = branch->end * 100 + Point{midPoint.X, midPoint.Y};
+		//}
+	}
+}
+
+/*  > this functions is used to cut a road off by speficic amount at specified end. 
+	> used for intersctions														*/
+void cutRoadFromSpecifiedEndBySpecifiedAmount(Segment* segment, bool isStart, double amount) {
+	// check which vertex it is
+	if (isStart) {
+		// I'm just using the point class, its actually a vector
+		// calculate direction to cut by
+		Point direction = segment->end - segment->start;
+		// normalize
+		direction = { direction.x / sqrt(direction.x * direction.x + direction.y * direction.y),
+					direction.y / sqrt(direction.x * direction.x + direction.y * direction.y) };
+		// set the point
+		segment->start = segment->start + direction * amount;
+	}
+	else {
+		// calculate direction to cut by
+		Point direction = segment->start - segment->end;
+		// normalize
+		direction = { direction.x / sqrt(direction.x * direction.x + direction.y * direction.y),
+					direction.y / sqrt(direction.x * direction.x + direction.y * direction.y) };
+		// multiply by amount
+		Point directionMultipliedByAmount = direction * amount;
+		// set the point
+		segment->end = segment->end + direction * amount;
+	}
+	// (this is all in 2D)
+}
+
+void cutRoadsLeadingIntoIntersections(std::vector<Segment*>& segments, std::vector<Intersection*> intersections)
+{
+	// iterate over intersections
+	for (auto intersection : intersections) {
+		// iterate over segments inside the intersections
+		for (auto intersectionSegment : intersection->branches) {
+			// find the segment from the list of all segments
+			int currentSegmentID = intersectionSegment->ID;
+			for (auto it = segments.begin(); it != segments.end(); ++it) {
+				if ((*it)->ID == currentSegmentID) {
+					auto currentSegment = *it;
+					// don't cut if smaller than specified amount
+					bool canCut = currentSegment->length() > 1000;
+					// we have to cut off currentSegment, NOT intersectionSegment. throw that away
+					bool isStart = (currentSegment->start - intersection->position).length() < (currentSegment->end - intersection->position).length();
+					if (isStart && canCut) {
+						// prune start point by a specific amount
+						// TODO: calculate this amount based on road width and angles
+						cutRoadFromSpecifiedEndBySpecifiedAmount(currentSegment, true, 200);
+					}
+					else if (!isStart && canCut) {
+						// prune end point by a specific amount
+						// TODO: calculate this amount based on road width and angles
+						cutRoadFromSpecifiedEndBySpecifiedAmount(currentSegment, false, 200);
+					}
+				}
+			}
 		}
 	}
 }
