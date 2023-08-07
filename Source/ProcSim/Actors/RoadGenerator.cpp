@@ -91,7 +91,7 @@ void ARoadGenerator::CreateRandomHeatmapAndApplyToPlane(UProceduralMeshComponent
 }
 
 // Main algorithm for creating the 3D roads
-bool ARoadGenerator::CreateSegmentsAndIntersections(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness, int numSegments)
+bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness, int numSegments)
 {
 	if (this->heatmap == nullptr)
 		return false;
@@ -129,28 +129,29 @@ bool ARoadGenerator::CreateSegmentsAndIntersections(FVector regionStartPoint, FV
 	UE_LOG(LogTemp, Warning, TEXT("Number of intersections: %d, intersectionsradius: %d, snaps: %d"),
 		debugData.intersections.size(), debugData.intersectionsRadius.size(), debugData.snaps.size());
 
+
+
 	FVector midPoint = (regionStartPoint + regionEndPoint) / 2;
 
-	// segments to unreal engine coordinates and remove segments outside of range specified
-	bringSegmentsIntoUnrealEngineCoordinatesAndRemoveOutsideOfRegion(segments, regionStartPoint, regionEndPoint);
-	// 
+	this->TransformToUECoordinates(midPoint);
+
+	this->RemoveOutsideOfRegion(regionStartPoint, regionEndPoint);
+
+
 	// intersections might be spawned with equal positions
 	removeDuplicateIntersections(intersections);
+	
+
 
 	// merge intersections close to eachother
 	mergeCloseIntersections(intersections);
 
-	// bring intersections to unreal engine coordinates ( to cm + offest )
-	bringIntersectionsIntoUnrealEngineCoordinates(intersections, midPoint);
+	
 
 	// cut the roads leading into the intersection
 	//cutRoadsLeadingIntoIntersections(segments, intersections);
 
 	// make procuderal intersections for twoway, threeway and fourway
-
-
-	/* use this to visualize the intersections*/
-	CreateIntersections(midPoint);
 
 	/* fix ordering of roads in Z value*/
 	findOrderOfRoads(segments);
@@ -162,25 +163,131 @@ bool ARoadGenerator::CreateSegmentsAndIntersections(FVector regionStartPoint, FV
 
 	CreateProceduralMeshForRoads(startPoints, endPoints, roadData);
 
+	/* use this to visualize the intersections*/
+	CreateIntersections(midPoint);
+
+	//GenerateMeshIntersections(this->ProceduralMeshMaker);
+
 	return true;
 }
 
+/* Creates the procedural mesh maker and generates the mesh */
 void ARoadGenerator::CreateProceduralMeshForRoads(TArray<FVector> startPoints, TArray<FVector> endPoints, TArray<FMetaRoadData> roadData)
 {
-
-
 	this->ProceduralMeshMaker = Cast<AProceduralMeshMaker>(GetWorld()->SpawnActor<AProceduralMeshMaker>(FActorSpawnParameters{}));
 	this->ProceduralMeshMaker->GenerateMesh(startPoints, endPoints, roadData);
 }
 
+/* Transform coordinates from algorithm to unreal engine coordinates and clean outside of region */
+void ARoadGenerator::TransformToUECoordinates(FVector midPoint)
+{
+	for (auto& segment : segments) {
+
+		segment->start = segment->start * 100 + Point(midPoint.X, midPoint.Y);
+		segment->end = segment->end * 100 + Point(midPoint.X, midPoint.Y);
+	}
+
+	for (auto intersection : intersections) {
+		intersection->position = intersection->position * 100 + Point{midPoint.X, midPoint.Y};
+	}
+
+}
+
+/* Remove segments and intersections outside of the region */
+void ARoadGenerator::RemoveOutsideOfRegion(FVector regionStartPoint, FVector regionEndPoint)
+{
+	// find the min and max points
+	double minx, maxx, miny, maxy;
+	if (regionStartPoint.X < regionEndPoint.X) {
+		minx = regionStartPoint.X;
+		maxx = regionEndPoint.X;
+	}
+	else {
+		maxx = regionStartPoint.X;
+		minx = regionEndPoint.X;
+	}
+	if (regionStartPoint.Y < regionEndPoint.Y) {
+		miny = regionStartPoint.Y;
+		maxy = regionEndPoint.Y;
+	}
+	else {
+		maxy = regionStartPoint.Y;
+		miny = regionEndPoint.Y;
+	}
+
+	auto isOutside = [minx, maxx, miny, maxy](double x, double y) {
+		return (x > maxx || x < minx || y > maxy || y < miny);
+	};
+
+	// iterate over all segments, select the ones outside of the region
+	// remove it from the branches vector from each of the intersections containing it
+	// then remove the segment itself
+	for (auto it = segments.begin(); it != segments.end();) {
+		auto segment = *it;
+		bool startOutside = isOutside(segment->start.x, segment->start.y);
+		bool endOutside = isOutside(segment->end.x, segment->end.y);
+
+		if (startOutside || endOutside) {
+			// two lambdas to compare start intersectionID and endID to intersectionID //
+			auto cmpStart = [segment](Intersection* intersection) {return segment->startIntersectionID == intersection->ID; };
+			auto cmpEnd = [segment](Intersection* intersection) {return segment->endIntersectionID == intersection->ID; };
+
+			// iterator to find intersection corresponding to segment's start and end
+			std::vector<Intersection*>::iterator it2;
+			
+			// compare the startintersectionID to each intersectionID
+			it2 = std::find_if(intersections.begin(), intersections.end(), cmpStart);
+
+			// erase segment from the branches vector in that intersection
+			if (it2 != intersections.end()) {
+				auto it3 = std::find((*it2)->branches.begin(), (*it2)->branches.end(), segment);
+				if (it3 != (*it2)->branches.end()) {
+					(*it2)->branches.erase(it3);
+				}
+			}
+			
+			// compare the endintersectionID to each intersectionID
+			it2 = std::find_if(intersections.begin(), intersections.end(), cmpEnd);
+
+			// erase segment from the branches vector in that intersection
+			if (it2 != intersections.end()) {
+				auto it3 = std::find((*it2)->branches.begin(), (*it2)->branches.end(), segment);
+				if (it3 != (*it2)->branches.end()) {
+					(*it2)->branches.erase(it3);
+				}
+			}
+		
+			it = segments.erase(it);
+		}
+		else {
+			++it;
+		}
+	}
+
+	// iterate over all intersections and remove the ones outside of the region specified
+	for (auto it = intersections.begin(); it != intersections.end();) {
+		Intersection* intersection = *it;
+		if (isOutside(intersection->position.x, intersection->position.y)) {
+			delete* it;
+			it = intersections.erase(it);
+		}
+		else {
+			++it;
+		}
+	}
+
+}
+
+
 // you have to calls this first before CreateIntersections
 void ARoadGenerator::SetIntersectionBlueprints(TSubclassOf<AActor> TwoWay, TSubclassOf<AActor> ThreeWay,
-	TSubclassOf<AActor> FourWay, TSubclassOf<AActor> MoreThanFourWay)
+	TSubclassOf<AActor> FourWay, TSubclassOf<AActor> MoreThanFourWay, TSubclassOf<AActor> Intersection)
 {
 	this->TwoWayBlueprint = TwoWay;
 	this->ThreeWayBlueprint = ThreeWay;
 	this->FourWayBlueprint = FourWay;
 	this->MoreThanFourWayBlueprint = MoreThanFourWay;
+	this->IntersectionBlueprint = Intersection;
 }
 
 // create intersections and spawn something on them
@@ -189,16 +296,32 @@ void ARoadGenerator::CreateIntersections(FVector midPoint)
 	// first of all, lets create different markers for the different intersections
 
 	for (auto intersection : intersections) {
+		/*
+		//FOR TEST
+		// two way
+		if (intersection->branches.size() == 2) {
+			GetWorld()->SpawnActor<AActor>(this->TwoWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+				static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
+		}
+		// three way
+		else if (intersection->branches.size() == 3) {
+			GetWorld()->SpawnActor<AActor>(this->ThreeWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+				static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
+		}
+		// four way
+		else if (intersection->branches.size() == 4) {
+			GetWorld()->SpawnActor<AActor>(this->FourWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+				static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
+		}
+		else if (intersection->branches.size() > 4) {
+			GetWorld()->SpawnActor<AActor>(this->MoreThanFourWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+				static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
+		}
+		*/
+
 		
-		/* two way*/
-		//if (intersection->branches.size() == 2) {
-			//GetWorld()->SpawnActor<AActor>(this->TwoWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
-			//	static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
-		//}
-		//else if (intersection->branches.size() == 3) {
-			//GetWorld()->SpawnActor<AActor>(this->ThreeWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
-			//	static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
-		//}
+		// intersection blueprint
+		
 		if (intersection->branches.size() >= 2) {
 			float height{};
 			int maxOrder{ -999999 };
@@ -212,17 +335,9 @@ void ARoadGenerator::CreateIntersections(FVector midPoint)
 						maxOrder = branch->endOrder;
 				}
 			}
-			UE_LOG(LogTemp, Warning, TEXT("maxOrder: %d"), maxOrder);
-			GetWorld()->SpawnActor<AActor>(this->FourWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
-				static_cast<float>(intersection->position.y), 90.0f }, FRotator{}, FActorSpawnParameters{});
+			GetWorld()->SpawnActor<AActor>(this->IntersectionBlueprint, FVector{ static_cast<float>(intersection->position.x),
+				static_cast<float>(intersection->position.y), 40.0f + (maxOrder+1)* 5}, FRotator{}, FActorSpawnParameters{});
 		}
-		else if (intersection->branches.size() > 4) {
-			//GetWorld()->SpawnActor<AActor>(this->MoreThanFourWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
-			//	static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
-		}
-
-		/*GetWorld()->SpawnActor<AActor>(this->RoadBlueprint, FVector{ static_cast<float>(intersection->position.x),
-			static_cast<float>(intersection->position.y), 40.0f }, FRotator{}, FActorSpawnParameters{});*/
 	}
 
 }
@@ -236,8 +351,8 @@ void ARoadGenerator::RoadSegmentsToStartAndEndPoints(TArray<FVector>& startPoint
 	roadData.Empty();
 
 	for (auto segment : this->segments) {
-		startPoints.Add(*(new FVector(segment->start.x,  segment->start.y, z + segment->startOrder)));
-		endPoints.Add(*(new FVector(segment->end.x, segment->end.y, z + segment->endOrder)));
+		startPoints.Add(*(new FVector(segment->start.x,  segment->start.y, z + segment->startOrder * 5))); // add 5cm for each order
+		endPoints.Add(*(new FVector(segment->end.x, segment->end.y, z + segment->endOrder * 5))); // add 5cm for each order
 		roadData.Add(FMetaRoadData{ segment->q.highway, static_cast<float>(segment->width)  * 100});
 
 	}

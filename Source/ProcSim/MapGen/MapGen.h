@@ -405,9 +405,7 @@ void generationStep(
 
 void findOrderAtEnd(Segment* segment, bool isStart);
 void findOrderOfRoads(std::vector<Segment*>& segments);
-void bringSegmentsIntoUnrealEngineCoordinatesAndRemoveOutsideOfRegion(std::vector<Segment*>& segments, FVector regionStartPoint, FVector regionEndPoint);
 void removeDuplicateIntersections(std::vector<Intersection*>& intersections);
 void mergeCloseIntersections(std::vector<Intersection*>& intersections);
-void bringIntersectionsIntoUnrealEngineCoordinates(std::vector<Intersection*>& intersections, FVector midPoint);
 void cutRoadFromSpecifiedEndBySpecifiedAmount(Segment* segment, bool isStart, double amount);
 void cutRoadsLeadingIntoIntersections(std::vector<Segment*>& segments, std::vector<Intersection*> intersections);

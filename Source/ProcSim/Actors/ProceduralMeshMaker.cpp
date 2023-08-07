@@ -65,13 +65,14 @@ namespace roadMath {
 	}
 }
 
-
+/* Constructor: creates procedrual mesh component */
 AProceduralMeshMaker::AProceduralMeshMaker()
 {
 	ProceduralRoadMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ProceduralRoadMesh"));
 	RootComponent = ProceduralRoadMesh;
 }
 
+/* some roads are specified, their mesh and  and the mesh between them is created */
 void AProceduralMeshMaker::CPPConstruction()
 {
 	UE_LOG(LogTemp, Warning, TEXT("OnConstruction called"));
@@ -104,6 +105,7 @@ void AProceduralMeshMaker::CPPConstruction()
 	}
 }
 
+/* created the procedural mesh based on the vertices, triangles and UVs it calculates */
 void AProceduralMeshMaker::GenerateMesh(TArray<FVector> startPoints, TArray<FVector> endPoints, TArray<FMetaRoadData> roadData)
 {
 	//Everything is in one mesh
@@ -114,7 +116,6 @@ void AProceduralMeshMaker::GenerateMesh(TArray<FVector> startPoints, TArray<FVec
 	//calculate the UVs
 	TArray<FVector2D> uvs = CalculateUVsForProceduralMesh(vertices);
 	//add mesh section to ProceduralMeshComponent
-
 	if (ProceduralRoadMesh == nullptr) {
 		UE_LOG(LogTemp, Error, TEXT("ProceduralRoadMesh is null!!"));
 		return;
@@ -129,13 +130,6 @@ void AProceduralMeshMaker::GenerateMesh(TArray<FVector> startPoints, TArray<FVec
 		return;
 	}
 	ImageHandler::ApplyTextureToProceduralMeshComponent(ProceduralRoadMesh, RoadTexture, FString("/Game/Materials/RoadMaterial"));
-}
-
-
-/* inputs are in unreal engine coordinates */
-void AProceduralMeshMaker::GenerateProceduralRoads(std::vector<Segment*> segments, std::vector<Intersection*> intersections, float height)
-{
-	
 }
 
 // this function is used to create procedural mesh for all the intersections
@@ -220,9 +214,11 @@ void AProceduralMeshMaker::GenerateMeshIntersections(std::vector<Intersection*> 
 
 		// we now have the corners sorted clockwise
 		
-		/*for (int i = 0; i < corners.Num() - 2; i++) {
+		for (int i = 0; i < corners.Num() - 2; i++) {
 			triangles.Append({ vertices.Num() , vertices.Num() + i + 2, vertices.Num() + i + 1});
-		}*/
+		}
+		vertices.Append(corners);
+		/*
 		if (intersection->branches.size() == 2) {
 			int len = vertices.Num();
 			TArray<int> triangle1 = {0+len,2+len,1+len};
@@ -235,6 +231,7 @@ void AProceduralMeshMaker::GenerateMeshIntersections(std::vector<Intersection*> 
 			triangles.Append(triangle4);
 			vertices.Append(corners);
 		}
+		*/
 		
 	}
 
@@ -267,9 +264,9 @@ TArray<FVector> AProceduralMeshMaker::CalculateVerticesForProceduralMesh(TArray<
 
 	for (int i = 0; i < startPoints.Num(); i++) {
 		/* randomize the Z value a bit */
-		float z = FMath::RandRange(startPoints[i].Z - startPoints[i].Z / 100, startPoints[i].Z + startPoints[i].Z / 100);
-		startPoints[i].Z = startPoints[i].Z + z;
-		endPoints[i].Z = endPoints[i].Z + z;
+		//float z = FMath::RandRange(startPoints[i].Z - startPoints[i].Z / 100, startPoints[i].Z + startPoints[i].Z / 100);
+		//startPoints[i].Z = startPoints[i].Z + z;
+		//endPoints[i].Z = endPoints[i].Z + z;
 
 		TArray<FVector> fourCorners = roadMath::FindFourCornersFromStartAndEndPoint(startPoints[i], endPoints[i], roadData[i].roadWidth);
 		vertices.Append(fourCorners);

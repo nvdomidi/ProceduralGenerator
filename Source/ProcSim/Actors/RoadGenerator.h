@@ -32,16 +32,21 @@ public:
 
 	/* Create Roads after heatmap is created */
 	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
-	bool CreateSegmentsAndIntersections(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness, int numSegments);
-
-	/* Create Procedural Mesh for Segments */
-	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
-	void CreateProceduralMeshForRoads(TArray<FVector> startPoints, TArray<FVector> endPoints, TArray<FMetaRoadData> roadData);
-
+	bool CreateRoads(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness, int numSegments);
+	
 	/* set actor for intersection showing */
 	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
 	void SetIntersectionBlueprints(TSubclassOf<AActor> TwoWay, TSubclassOf<AActor> ThreeWay,
-		TSubclassOf<AActor> FourWay, TSubclassOf<AActor> MoreThanFourWay);
+		TSubclassOf<AActor> FourWay, TSubclassOf<AActor> MoreThanFourWay, TSubclassOf<AActor> Intersection);
+
+	/* Creates the procedural mesh maker and generates the mesh */
+	void CreateProceduralMeshForRoads(TArray<FVector> startPoints, TArray<FVector> endPoints, TArray<FMetaRoadData> roadData);
+
+	/* Transform coordinates from algorithm to unreal engine coordinates */
+	void TransformToUECoordinates(FVector midPoint);
+
+	/* Remove segments and intersections outside of the region */
+	void RemoveOutsideOfRegion(FVector regionStartPoint, FVector regionEndPoint);
 
 	/* Spawn something on intersections*/
 	void CreateIntersections(FVector midPoint);
@@ -59,10 +64,13 @@ public:
 	TSubclassOf<AActor> RoadBlueprint;
 
 	/* These blueprints are going to be markers for the intersections*/
+	/* for test purposes */
 	TSubclassOf<AActor> TwoWayBlueprint;
 	TSubclassOf<AActor> ThreeWayBlueprint;
 	TSubclassOf<AActor> FourWayBlueprint;
 	TSubclassOf<AActor> MoreThanFourWayBlueprint;
+	/* This blueprint is going to be actually spawned at the intersection location */
+	TSubclassOf<AActor> IntersectionBlueprint;
 
 
 	UPROPERTY()

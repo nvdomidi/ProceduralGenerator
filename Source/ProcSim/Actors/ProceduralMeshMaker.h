@@ -26,21 +26,20 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProceduralMeshMaker")
 	UProceduralMeshComponent* ProceduralRoadMesh;
 
-	// This function is used to create the mesh in the editor for test reasons
-	//virtual void OnConstruction(const FTransform& Transform) override;
+	
 	bool generated = false;
 
+	/* for test purposes. used inside blueprint constructor to test things */
 	UFUNCTION(BlueprintCallable, Category = "ProceduralMeshMaker")
 	void CPPConstruction();
 
-	UFUNCTION(BlueprintCallable, Category = "ProceduralMeshMaker")
+	/* takes in FVector start and end points and roadmetadata and creates the procedural mesh */
 	void GenerateMesh(TArray<FVector> startPoints, TArray<FVector> endPoints, TArray<FMetaRoadData> roadData);
 
-	void GenerateProceduralRoads(std::vector<Segment*> segments, std::vector<Intersection*> intersections, float height = 40.0f);
-
-	//UFUNCTION(BlueprintCallable, Category = )
+	/* this function can be used to make the mesh connecting the intersections */
 	void GenerateMeshIntersections(std::vector<Intersection*> intersections, float height = 40.0f);
 
+	/* helper functions to generate vertices, triangles, UVs for the procedural mesh */
 	TArray<FVector> CalculateVerticesForProceduralMesh(TArray<FVector> startPoints, TArray<FVector> endPoints, TArray<FMetaRoadData> roadData);
 	TArray<int> CalculateTrianglesForProceduralMesh(TArray<FVector> vertices);
 	TArray<FVector2D> CalculateUVsForProceduralMesh(TArray<FVector> vertices);

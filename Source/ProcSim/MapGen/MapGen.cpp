@@ -87,7 +87,9 @@ bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtre
 
 					/* adding the newly created segment to the previously created intersection*/
 					for (auto intersection : intersections) {
+						
 						if (intersection->IsAtQueriedPosition(point)) {
+							UE_LOG(LogTemp, Warning, TEXT("INTERMILAN"));
 							intersection->branches.push_back(segment);
 							break;
 						}
@@ -301,7 +303,7 @@ void generationStep(
 				minSegment->links_b[0]->end - minSegment->links_b[0]->start);
 
 			// if angle is more than 20 degrees = intersection
-			if (angle > 20 || angle < -20) {
+			if (abs(fmod(angle,180)) > 20) {
 				std::vector<Segment*> intersectionLinks{minSegment, minSegment->links_b[0]};
 				intersections.push_back(new Intersection{intersectionLinks, minSegment->start});
 			}
@@ -322,7 +324,7 @@ void generationStep(
 				minSegment->links_f[0]->end - minSegment->links_f[0]->start);
 
 			// if angle is more than 20 degrees = intersection
-			if (fmod(angle,180) > 20 || fmod(angle,180) < -20) {
+			if (abs(fmod(angle,180)) > 20) {
 				std::vector<Segment*> intersectionLinks{minSegment, minSegment->links_f[0]};
 				intersections.push_back(new Intersection{ intersectionLinks, minSegment->end });
 			}
@@ -350,7 +352,7 @@ void findOrderAtEnd(Segment* segment, bool isStart)
 	// if there is no link do nothing
 	if (links.size() < 1) {}
 	// if there is one link set it to 1 + others order
-	if (links.size() == 1) {
+	else if (links.size() == 1) {
 		if (isStart) {
 			if (std::find(links[0]->links_b.begin(), links[0]->links_b.end(), segment) != links[0]->links_b.end()) {
 				segment->startOrder = links[0]->startOrder + 1;
@@ -369,7 +371,7 @@ void findOrderAtEnd(Segment* segment, bool isStart)
 		}
 	}
 
-	if (links.size() == 2) {
+	else if (links.size() == 2) {
 		if (isStart) {
 			// check the angle it has with the other two
 			if (abs(fmod(links[0]->dir(), 180) - fmod(links[1]->dir(), 180)) < 20) {
@@ -415,7 +417,7 @@ void findOrderAtEnd(Segment* segment, bool isStart)
 		}
 	}
 
-	if (links.size() >= 3) {
+	else if (links.size() >= 3) {
 		std::vector<std::pair<Segment*, double>> segmentAngles;
 		for (auto link : links) {
 			double angle = abs(fmod(link->dir(), 180) - fmod(segment->dir(), 180));
@@ -455,37 +457,6 @@ void findOrderOfRoads(std::vector<Segment*>& segments)
 	for (auto segment : segments) {
 		findOrderAtEnd(segment, true);
 		findOrderAtEnd(segment, false);
-	}
-}
-
-void bringSegmentsIntoUnrealEngineCoordinatesAndRemoveOutsideOfRegion(std::vector<Segment*>& segments, FVector regionStartPoint, FVector regionEndPoint)
-{
-	/* Each segment is transformed back to world units and offset of midPoint is added to it */
-	FVector midPoint = (regionStartPoint + regionEndPoint) / 2;
-
-	for (auto& segment : segments) {
-
-		segment->start = segment->start * 100 + Point(midPoint.X, midPoint.Y);
-		segment->end = segment->end * 100 + Point(midPoint.X, midPoint.Y);
-	}
-
-	// find the min and max points
-	double minx, maxx, miny, maxy;
-	if (regionStartPoint.X < regionEndPoint.X) {
-		minx = regionStartPoint.X;
-		maxx = regionEndPoint.X;
-	}
-	else {
-		maxx = regionStartPoint.X;
-		minx = regionEndPoint.X;
-	}
-	if (regionStartPoint.Y < regionEndPoint.Y) {
-		miny = regionStartPoint.Y;
-		maxy = regionEndPoint.Y;
-	}
-	else {
-		maxy = regionStartPoint.Y;
-		miny = regionEndPoint.Y;
 	}
 }
 
@@ -561,17 +532,6 @@ void mergeCloseIntersections(std::vector<Intersection*>& intersections) {
 
 }
 
-/* this function brings the intersections into unreal engine coordinates */
-void bringIntersectionsIntoUnrealEngineCoordinates(std::vector<Intersection*>& intersections, FVector midPoint) {
-	for (auto intersection : intersections) {
-		intersection->position = intersection->position * 100 + Point{midPoint.X, midPoint.Y};
-		//for (auto& branch : intersection->branches) {
-		//	branch->start = branch->start * 100 + Point{midPoint.X, midPoint.Y};
-		//	branch->end = branch->end * 100 + Point{midPoint.X, midPoint.Y};
-		//}
-	}
-}
-
 /*  > this functions is used to cut a road off by speficic amount at specified end. 
 	> used for intersctions														*/
 void cutRoadFromSpecifiedEndBySpecifiedAmount(Segment* segment, bool isStart, double amount) {
@@ -618,12 +578,12 @@ void cutRoadsLeadingIntoIntersections(std::vector<Segment*>& segments, std::vect
 					if (isStart && canCut) {
 						// prune start point by a specific amount
 						// TODO: calculate this amount based on road width and angles
-						cutRoadFromSpecifiedEndBySpecifiedAmount(currentSegment, true, 200);
+						cutRoadFromSpecifiedEndBySpecifiedAmount(currentSegment, true, 600);
 					}
 					else if (!isStart && canCut) {
 						// prune end point by a specific amount
 						// TODO: calculate this amount based on road width and angles
-						cutRoadFromSpecifiedEndBySpecifiedAmount(currentSegment, false, 200);
+						cutRoadFromSpecifiedEndBySpecifiedAmount(currentSegment, false, 600);
 					}
 				}
 			}
