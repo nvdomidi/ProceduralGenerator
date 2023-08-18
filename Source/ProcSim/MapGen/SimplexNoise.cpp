@@ -37,7 +37,7 @@
   *
   * I measured it to be approximately twice as fast:
   *  float:  ~18.4ns instead of ~39.6ns on an AMD APU),
-  *  double: ~20.6ns instead of ~36.6ns on an AMD APU),
+  *  float: ~20.6ns instead of ~36.6ns on an AMD APU),
   * Reference: http://www.codeproject.com/Tips/700780/Fast-floor-ceiling-functions
   *
   * @param[in] fp    float input value

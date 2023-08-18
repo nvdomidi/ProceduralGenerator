@@ -9,6 +9,8 @@
 #include "ProcSim/MapGen/SimplexNoise.h"
 #include "ProcSim/Utils/ImageHandler.h"
 #include "ProcSim/Actors/ProceduralMeshMaker.h"
+#include "ProcSim/Actors/CityBlocksMaker.h"
+
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -33,6 +35,10 @@ public:
 	/* Create Roads after heatmap is created */
 	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
 	bool CreateRoads(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness, int numSegments);
+
+	/* Divide City into Blocks */
+	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
+	bool CreateBlocks();
 	
 	/* set actor for intersection showing */
 	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
@@ -80,6 +86,7 @@ public:
 	std::vector<Segment*> segments;
 	std::vector<Intersection*> intersections;
 	AProceduralMeshMaker* ProceduralMeshMaker = nullptr;
+	ACityBlocksMaker* CityBlocksMaker = nullptr;
 
 	// Sets default values for this actor's properties
 	ARoadGenerator();

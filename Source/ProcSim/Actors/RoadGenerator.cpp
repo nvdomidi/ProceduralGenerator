@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 #include "RoadGenerator.h"
-#include "ProcSim/Actors/ProceduralMeshMaker.h"
+#include "Engine/Classes/Components/TextRenderComponent.h"
 
 #include <memory>
 #include "ProcSim/Utils/ImageHandler.h"
@@ -133,6 +133,8 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 
 	FVector midPoint = (regionStartPoint + regionEndPoint) / 2;
 
+	regenerateIntersections(qTree, segments, intersections);
+
 	this->TransformToUECoordinates(midPoint);
 
 	this->RemoveOutsideOfRegion(regionStartPoint, regionEndPoint);
@@ -144,7 +146,7 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 
 
 	// merge intersections close to eachother
-	mergeCloseIntersections(intersections);
+	//mergeCloseIntersections(intersections);
 
 	
 
@@ -154,6 +156,8 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 	// make procuderal intersections for twoway, threeway and fourway
 
 	/* fix ordering of roads in Z value*/
+	
+	
 	findOrderOfRoads(segments);
 
 	/* generate intersections procedural mesh */
@@ -167,6 +171,99 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 	CreateIntersections(midPoint);
 
 	//GenerateMeshIntersections(this->ProceduralMeshMaker);
+
+	return true;
+}
+
+namespace roadMath {
+	float cross_product(Point A, Point B, Point C) {
+		return (B.x - A.x) * (C.y - A.y) - (B.y - A.y) * (C.x - A.x);
+	}
+
+	bool isConvex(const TArray<Point>& points) {
+		bool got_positive = false;
+		bool got_negative = false;
+
+		int n = points.Num();
+
+		for (int i = 0; i < n; i++) {
+			Point A = points[i];
+			Point B = points[(i + 1) % n];
+			Point C = points[(i + 2) % n];
+
+			double cross = cross_product(A, B, C);
+
+			if (cross < 0) {
+				got_negative = true;
+			}
+			else if (cross > 0) {
+				got_positive = true;
+			}
+
+			if (got_positive && got_negative) {
+				return false;  // It's concave
+			}
+		}
+
+		return true;  // It's convex
+	}
+}
+
+/* Makes graph and divides into cycles*/
+bool ARoadGenerator::CreateBlocks()
+{
+	this->CityBlocksMaker = Cast<ACityBlocksMaker>(GetWorld()->SpawnActor<ACityBlocksMaker>(FActorSpawnParameters{}));
+	auto graph = this->CityBlocksMaker->MakeGraph(this->intersections, this->segments);
+	
+	TArray<TArray<int>> cycles = this->CityBlocksMaker->MakeCycles(graph);
+
+	UE_LOG(LogTemp, Warning, TEXT("num cycles: %d"), cycles.Num());
+
+	auto logcycle = [](const TArray<int>& cycle) {
+		FString result = "{ ";
+		for (int i = 0; i < cycle.Num(); i++) {
+			result += FString::Printf(TEXT("%d"), cycle[i]);
+			if (i != cycle.Num() - 1) {
+				result += ", ";
+			}
+		}
+		result += " }";
+		return result;
+	};
+
+	for (auto cycle : cycles) {
+		UE_LOG(LogTemp, Warning, TEXT("Cycle: %s"), *(logcycle(cycle)));
+	}
+
+	// only keep convex cycles
+	TArray<TArray<int>> convexCycles{};
+
+	for (TArray<int> cycle : cycles) {
+		TArray<Point> positions{};
+		for (int i : cycle) {
+			positions.Add(graph.vertices[i]->data->position);
+		}
+		if (roadMath::isConvex(positions))
+			convexCycles.Add(cycle);
+	}
+
+	// spawning something at the mid position
+	for (TArray<int> cycle : convexCycles) {
+		Point pos{};
+		FString cyclestring = "";
+		for (int i : cycle) {
+			cyclestring += FString::Printf(TEXT("%d-"), i);
+			pos = pos + graph.vertices[i]->data->position;
+		}
+		pos = pos / cycle.Num();
+
+		FVector pos3d{ static_cast<float>(pos.x), static_cast<float>(pos.y), 45.0f };
+		auto cyclebp = GetWorld()->SpawnActor<AActor>(this->IntersectionBlueprint, pos3d, FRotator{}, FActorSpawnParameters{});
+		//auto textcycle = Cast<UTextRenderComponent>(cyclebp->GetComponentByClass(UTextRenderComponent::StaticClass()));
+		//textcycle->SetText(cyclestring);
+	}
+
+
 
 	return true;
 }
@@ -197,7 +294,7 @@ void ARoadGenerator::TransformToUECoordinates(FVector midPoint)
 void ARoadGenerator::RemoveOutsideOfRegion(FVector regionStartPoint, FVector regionEndPoint)
 {
 	// find the min and max points
-	double minx, maxx, miny, maxy;
+	float minx, maxx, miny, maxy;
 	if (regionStartPoint.X < regionEndPoint.X) {
 		minx = regionStartPoint.X;
 		maxx = regionEndPoint.X;
@@ -215,7 +312,7 @@ void ARoadGenerator::RemoveOutsideOfRegion(FVector regionStartPoint, FVector reg
 		miny = regionEndPoint.Y;
 	}
 
-	auto isOutside = [minx, maxx, miny, maxy](double x, double y) {
+	auto isOutside = [minx, maxx, miny, maxy](float x, float y) {
 		return (x > maxx || x < minx || y > maxy || y < miny);
 	};
 
@@ -268,7 +365,26 @@ void ARoadGenerator::RemoveOutsideOfRegion(FVector regionStartPoint, FVector reg
 	for (auto it = intersections.begin(); it != intersections.end();) {
 		Intersection* intersection = *it;
 		if (isOutside(intersection->position.x, intersection->position.y)) {
-			delete* it;
+			/*for (auto branch : intersection->branches) {
+				if (branch->startIntersectionID == intersection->ID) {
+					UE_LOG(LogTemp, Warning, TEXT("doing somthing here to start"));
+					branch->startIntersectionID = -1;
+				}
+				if (branch->endIntersectionID == intersection->ID) {
+					UE_LOG(LogTemp, Warning, TEXT("doing somthing here to end"));
+					branch->endIntersectionID = -1;
+				}
+			}*/
+
+			for (auto segment : segments) {
+				if (segment->startIntersectionID == intersection->ID) {
+					segment->startIntersectionID = -1;
+				}
+				if (segment->endIntersectionID == intersection->ID) {
+					segment->endIntersectionID = -1;
+				}
+			}
+			UE_LOG(LogTemp, Warning, TEXT("OUTSIDE OF REGION: %d"), intersection->ID);
 			it = intersections.erase(it);
 		}
 		else {
@@ -296,7 +412,7 @@ void ARoadGenerator::CreateIntersections(FVector midPoint)
 	// first of all, lets create different markers for the different intersections
 
 	for (auto intersection : intersections) {
-		/*
+		
 		//FOR TEST
 		// two way
 		if (intersection->branches.size() == 2) {
@@ -317,12 +433,12 @@ void ARoadGenerator::CreateIntersections(FVector midPoint)
 			GetWorld()->SpawnActor<AActor>(this->MoreThanFourWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
 				static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
 		}
-		*/
+		
 
 		
 		// intersection blueprint
 		
-		if (intersection->branches.size() >= 2) {
+		/*if (intersection->branches.size() >= 1) {
 			float height{};
 			int maxOrder{ -999999 };
 			for (auto branch : intersection->branches) {
@@ -335,9 +451,14 @@ void ARoadGenerator::CreateIntersections(FVector midPoint)
 						maxOrder = branch->endOrder;
 				}
 			}
-			GetWorld()->SpawnActor<AActor>(this->IntersectionBlueprint, FVector{ static_cast<float>(intersection->position.x),
+			auto inter = GetWorld()->SpawnActor<AActor>(this->IntersectionBlueprint, FVector{ static_cast<float>(intersection->position.x),
 				static_cast<float>(intersection->position.y), 40.0f + (maxOrder+1)* 5}, FRotator{}, FActorSpawnParameters{});
-		}
+			
+
+			auto textrender = Cast<UTextRenderComponent>(inter->GetComponentByClass(UTextRenderComponent::StaticClass()));
+			
+			textrender->SetText(FString::Printf(TEXT("%d"), intersection->ID));
+		}*/
 	}
 
 }

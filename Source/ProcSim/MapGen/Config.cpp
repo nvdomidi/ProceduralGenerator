@@ -1,16 +1,16 @@
 #include "Config.h"
 #include "Math.h"
 
-const double Config::DEFAULT_SEGMENT_LENGTH = 300;
-const double Config::HIGHWAY_SEGMENT_LENGTH = 400;
-const double Config::DEFAULT_SEGMENT_WIDTH = 6;
-const double Config::HIGHWAY_SEGMENT_WIDTH = 16;
-const double Config::DEFAULT_HEIGHT = 0.4;
-double Config::DEFAULT_ROADPART_LENGTH = 22.86;
-const double Config::DEFAULT_BRANCH_PROBABILITY = 0.4;
-const double Config::HIGHWAY_BRANCH_PROBABILITY = 0.02;
-const double Config::HIGHWAY_BRANCH_POPULATION_THRESHOLD = 0.1;
-const double Config::NORMAL_BRANCH_POPULATION_THRESHOLD = 0.1;
+const float Config::DEFAULT_SEGMENT_LENGTH = 300;
+const float Config::HIGHWAY_SEGMENT_LENGTH = 400;
+const float Config::DEFAULT_SEGMENT_WIDTH = 6;
+const float Config::HIGHWAY_SEGMENT_WIDTH = 16;
+const float Config::DEFAULT_HEIGHT = 0.4;
+float Config::DEFAULT_ROADPART_LENGTH = 22.86;
+const float Config::DEFAULT_BRANCH_PROBABILITY = 0.4;
+const float Config::HIGHWAY_BRANCH_PROBABILITY = 0.02;
+const float Config::HIGHWAY_BRANCH_POPULATION_THRESHOLD = 0.1;
+const float Config::NORMAL_BRANCH_POPULATION_THRESHOLD = 0.1;
 const int Config::NORMAL_BRANCH_TIME_DELAY_FROM_HIGHWAY = 10;
 const int Config::HIGHWAY_POPULATION_SAMPLE_SIZE = 1;
 const int Config::MINIMUM_INTERSECTION_DEVIATION = 30;
@@ -24,14 +24,14 @@ const bool Config::IGNORE_CONFLICTS = false;
 const int Config::DELAY_BETWEEN_TIME_STEPS = 0;
 const bool Config::TWO_SEGMENTS_INITIALLY = true;
 const bool Config::START_WITH_NORMAL_STREETS = false;
-double Config::minx = -20000;
-double Config::miny = -20000;
-double Config::maxx = 20000;
-double Config::maxy = 20000;
+float Config::minx = -20000;
+float Config::miny = -20000;
+float Config::maxx = 20000;
+float Config::maxy = 20000;
 bool Config::COMPLETELYRANDOM = true;
 ESTRAIGHTNESS Config::STRAIGHTNESS = ESTRAIGHTNESS::SE_STRAIGHT;
 
-double Config::RANDOM_BRANCH_ANGLE() {
+float Config::RANDOM_BRANCH_ANGLE() {
     switch (Config::STRAIGHTNESS) {
     case ESTRAIGHTNESS::SE_CURVED:
         return Math::randomNearCubic(5);
@@ -44,7 +44,7 @@ double Config::RANDOM_BRANCH_ANGLE() {
     }
 }
 
-double Config::RANDOM_STRAIGHT_ANGLE() {
+float Config::RANDOM_STRAIGHT_ANGLE() {
     switch (Config::STRAIGHTNESS) {
     case ESTRAIGHTNESS::SE_CURVED:
         return Math::randomNearCubic(20);

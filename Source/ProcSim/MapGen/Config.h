@@ -3,24 +3,24 @@
 
 class Config {
 public:
-    static const double DEFAULT_SEGMENT_LENGTH;
-    static const double HIGHWAY_SEGMENT_LENGTH;
-    static const double DEFAULT_SEGMENT_WIDTH;
-    static const double HIGHWAY_SEGMENT_WIDTH;
-    static double DEFAULT_ROADPART_LENGTH;
-    static const double DEFAULT_HEIGHT;
+    static const float DEFAULT_SEGMENT_LENGTH;
+    static const float HIGHWAY_SEGMENT_LENGTH;
+    static const float DEFAULT_SEGMENT_WIDTH;
+    static const float HIGHWAY_SEGMENT_WIDTH;
+    static float DEFAULT_ROADPART_LENGTH;
+    static const float DEFAULT_HEIGHT;
 
     /** branch with 90° angle + randomness */
-    static double RANDOM_BRANCH_ANGLE();
+    static float RANDOM_BRANCH_ANGLE();
     /** sample possible highway continuation with this angle */
-    static double RANDOM_STRAIGHT_ANGLE();
+    static float RANDOM_STRAIGHT_ANGLE();
     /** probability of branching normal streets (including from highways) */
-    static const double DEFAULT_BRANCH_PROBABILITY;
+    static const float DEFAULT_BRANCH_PROBABILITY;
     /** probability of branching from highways */
-    static const double HIGHWAY_BRANCH_PROBABILITY;
+    static const float HIGHWAY_BRANCH_PROBABILITY;
     /** minimum population to allow branching */
-    static const double HIGHWAY_BRANCH_POPULATION_THRESHOLD;
-    static const double NORMAL_BRANCH_POPULATION_THRESHOLD;
+    static const float HIGHWAY_BRANCH_POPULATION_THRESHOLD;
+    static const float NORMAL_BRANCH_POPULATION_THRESHOLD;
     /** time steps every normal street that branches from a highway is delayed */
     static const int NORMAL_BRANCH_TIME_DELAY_FROM_HIGHWAY;
     /** number of possible new segments to search for maximum population */
@@ -32,7 +32,7 @@ public:
     /** maximum distance to connect roads */
     static const int ROAD_SNAP_DISTANCE;
 
-    static const struct QuadTreeParams { double x4; double y; double width; double height; } QUADTREE_PARAMS;
+    static const struct QuadTreeParams { float x4; float y; float width; float height; } QUADTREE_PARAMS;
     static const int QUADTREE_MAX_OBJECTS;
     static const int QUADTREE_MAX_LEVELS;
     /////////////////////////////////////static const bool DEBUG;
@@ -47,10 +47,10 @@ public:
     /** instead of starting with highways */
     static const bool START_WITH_NORMAL_STREETS;
     /* mapsize */
-    static double minx;
-    static double miny;
-    static double maxx;
-    static double maxy;
+    static float minx;
+    static float miny;
+    static float maxx;
+    static float maxy;
 
     /* Code Configurations added by Navid*/
     /* if true, the heatmap will be very noisy and random*/

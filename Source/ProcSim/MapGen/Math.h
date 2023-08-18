@@ -6,7 +6,6 @@
 
 # define M_PI           3.14159265358979323846
 
-
 class Point {
 public:
 
@@ -35,7 +34,7 @@ public:
         return { x - other.x, y - other.y };
     }
 
-    bool operator==(const Point& other) {
+    bool operator==(const Point& other) const {
         return (x == other.x && y == other.y);
     }
     
@@ -47,6 +46,18 @@ public:
     double x;
     double y;
 };
+
+namespace std {
+    template<>
+    struct hash<Point> {
+        std::size_t operator()(const Point& p) const noexcept {
+            // Hash combine idiom
+            std::size_t h1 = std::hash<double>{}(p.x);
+            std::size_t h2 = std::hash<double>{}(p.y);
+            return h1 ^ (h2 << 1);
+        }
+    };
+}
 
 
 struct LineSegmentIntersection {

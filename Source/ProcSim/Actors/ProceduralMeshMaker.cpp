@@ -2,6 +2,8 @@
 
 
 #include "ProceduralMeshMaker.h"
+
+#include "ProcSim/Actors/CityBlocksMaker.h"
 #include "ProcSim/Utils/ImageHandler.h"
 #include "ProcSim/MapGen/Config.h"
 #include <algorithm>
@@ -83,23 +85,145 @@ void AProceduralMeshMaker::CPPConstruction()
 	if (!generated) {
 		UE_LOG(LogTemp, Warning, TEXT("Generating!!!"));
 
-		TArray<FVector> startPoints{FVector(-400, 0, 1), FVector(400, 0, 1), FVector(0, -400, 1), FVector(0, 400, 1)};
-		TArray<FVector> endPoints{FVector(-10, 0, 1), FVector(7, 0, 1), FVector(0, -6, 1), FVector(0, 9, 1)};
-		TArray<FMetaRoadData> roadData{FMetaRoadData{false, static_cast<float>(Config::DEFAULT_SEGMENT_WIDTH)},
-			FMetaRoadData{ false, static_cast<float>(Config::DEFAULT_SEGMENT_WIDTH) },
-			FMetaRoadData{ false, static_cast<float>(Config::DEFAULT_SEGMENT_WIDTH) },
-			FMetaRoadData{ false, static_cast<float>(Config::DEFAULT_SEGMENT_WIDTH) }};
-		Segment* segment1 = new Segment({-400,0}, {-10,0});
+		TArray<FVector> startPoints{
+			FVector{ 0, 0, 1 },
+				FVector{ 400,0,1 },
+				FVector{ 0,0,1 },
+				FVector{ 0,-400,1 },
+				FVector{ 800,-800,1 },
+				FVector{ 400,-800,1 },
+				FVector{ 800,0,1 },
+				FVector{ 800,-400,1 },
+				FVector{ 0,-1600,1 },
+				FVector{ 0,-1200,1 },
+				FVector{ 800,0,1 },
+				FVector{ 1200,0,1 },
+				FVector{ 1000,-400,1 },
+				FVector{ 1200,0,1 }
+		};
+
+		TArray<FVector> endPoints{
+			FVector{ 400, 0, 1 },
+				FVector{ 800,0,1 },
+				FVector{ 0,-400,1 },
+				FVector{ 0,-800,1 },
+				FVector{ 400,-800,1 },
+				FVector{ 0,-800,1 },
+				FVector{ 800,-400,1 },
+				FVector{ 800,-800,1 },
+				FVector{ 0,-1200,1 },
+				FVector{ 0,-800,1 },
+				FVector{ 1200,0,1 },
+				FVector{ 1000,-400,1 },
+				FVector{ 800,-800,1 },
+				FVector{ 1600,0,1 }
+		};
+
+		TArray<FMetaRoadData> roadData{};
+		for (FVector point : startPoints) {
+			roadData.Add(FMetaRoadData{ false, (Config::DEFAULT_SEGMENT_WIDTH) });
+		}
+
+		Segment* segment1 = new Segment({ 0,0 }, { 400,0 });
+		Segment* segment2 = new Segment({ 400,0 }, { 800,0 });
+		Segment* segment3 = new Segment({ 0,0 }, { 0,-400 });
+		Segment* segment4 = new Segment({ 0,-400 }, { 0,-800 });
+		Segment* segment5 = new Segment({ 800,-800 }, { 400,-800 });
+		Segment* segment6 = new Segment({ 400,-800 }, { 0,-800 });
+		Segment* segment7 = new Segment({ 800,0 }, { 800,-400 });
+		Segment* segment8 = new Segment({ 800,-400 }, { 800,-800 });
+		Segment* segment9 = new Segment({ 0,-1600 }, { 0,-1200 });
+		Segment* segment10 = new Segment({ 0,-1200 }, { 0,-800 });
+		Segment* segment11 = new Segment({ 800,0 }, { 1200,0 });
+		Segment* segment12 = new Segment({ 1200,0 }, { 1000,-400 });
+		Segment* segment13 = new Segment({ 1000,-400 }, { 800,-800 });
+		Segment* segment14 = new Segment({ 1200,0 }, { 1600,0 });
+
+		segment1->links_b = { segment3 };
+		segment1->links_f = { segment2 };
+		segment2->links_b = { segment1 };
+		segment2->links_f = { segment11, segment7 };
+		segment3->links_b = { segment1 };
+		segment3->links_f = { segment4 };
+		segment4->links_b = { segment3 };
+		segment4->links_f = { segment6, segment10 };
+		segment5->links_b = { segment8,segment13 };
+		segment5->links_f = { segment6 };
+		segment6->links_b = { segment5 };
+		segment6->links_f = { segment4, segment10 };
+		segment7->links_b = { segment2, segment11 };
+		segment7->links_f = { segment8 };
+		segment8->links_b = { segment7 };
+		segment8->links_f = { segment13, segment5 };
+		segment9->links_b = {  };
+		segment9->links_f = { segment10 };
+		segment10->links_b = { segment9 };
+		segment10->links_f = { segment6, segment4 };
+		segment11->links_b = { segment2, segment7 };
+		segment11->links_f = { segment12, segment14 };
+		segment12->links_b = { segment14, segment11 };
+		segment12->links_f = { segment13 };
+		segment13->links_b = { segment12 };
+		segment13->links_f = { segment8, segment5 };
+		segment14->links_b = { segment11, segment12 };
+		segment14->links_f = { };
+
+		std::vector<Segment*> int1segments = { segment1, segment3 };
+		std::vector<Segment*> int2segments = { segment2, segment11, segment7 };
+		std::vector<Segment*> int3segments = { segment11, segment12, segment14 };
+		std::vector<Segment*> int4segments = { segment4, segment6, segment10 };
+		std::vector<Segment*> int5segments = { segment5, segment8, segment13 };
+
+		Point int1pos = {0,0};
+		Point int2pos = { 800,0 };
+		Point int3pos = { 1200,0 };
+		Point int4pos = { 0,-800 };
+		Point int5pos = { 800,-800 };
+
+		Intersection* inter1 = new Intersection(int1segments, int1pos);
+		Intersection* inter2 = new Intersection(int2segments, int2pos);
+		Intersection* inter3 = new Intersection(int3segments, int3pos);
+		Intersection* inter4 = new Intersection(int4segments, int4pos);
+		Intersection* inter5 = new Intersection(int5segments, int5pos);
+
+		segment1->startIntersectionID = inter1->ID;
+		segment2->endIntersectionID = inter2->ID;
+		segment3->startIntersectionID = inter1->ID;
+		segment4->endIntersectionID = inter4->ID;
+		segment5->startIntersectionID = inter5->ID;
+		segment6->endIntersectionID = inter4->ID;
+		segment7->startIntersectionID = inter2->ID;
+		segment8->endIntersectionID = inter5->ID;
+		segment10->endIntersectionID = inter4->ID;
+		segment11->startIntersectionID = inter2->ID;
+		segment11->endIntersectionID = inter3->ID;
+		segment12->startIntersectionID = inter3->ID;
+		segment13->endIntersectionID = inter5->ID;
+		segment14->startIntersectionID = inter3->ID;
+
+		std::vector<Intersection*> intersections = { inter1, inter2, inter3, inter4, inter5 };
+		std::vector<Segment*> segments = { segment1, segment2, segment3, segment4, segment5, segment6,
+		segment7, segment8, segment9, segment10, segment11, segment12, segment13, segment14 };
+
+		//TArray<FVector> startPoints{FVector(-400, 0, 1), FVector(400, 0, 1), FVector(0, -400, 1), FVector(0, 400, 1)};
+		//TArray<FVector> endPoints{FVector(-10, 0, 1), FVector(7, 0, 1), FVector(0, -6, 1), FVector(0, 9, 1)};
+		/*TArray<FMetaRoadData> roadData{FMetaRoadData{false, (Config::DEFAULT_SEGMENT_WIDTH)},
+			FMetaRoadData{ false, (Config::DEFAULT_SEGMENT_WIDTH) },
+			FMetaRoadData{ false, (Config::DEFAULT_SEGMENT_WIDTH) },
+			FMetaRoadData{ false, (Config::DEFAULT_SEGMENT_WIDTH) }};*/
+		/*Segment* segment1 = new Segment({-400,0}, {-10,0});
 		Segment* segment2 = new Segment({ 400,0 }, { 7,0 });
 		Segment* segment3 = new Segment({ 0,-400 }, { 0,-6 });
 		Segment* segment4 = new Segment({ 0,400 }, { 0,9 });
 		std::vector<Segment*> segments = { segment1, segment2, segment3, segment4 };
 		Intersection* intersection = new Intersection(segments, { 0.0, 0.0 });
-		std::vector<Intersection*> intersections = { intersection };
+		std::vector<Intersection*> intersections = { intersection };*/
 
 
 		GenerateMesh(startPoints, endPoints, roadData);
-		GenerateMeshIntersections(intersections);
+		auto blocksmaker = Cast<ACityBlocksMaker>(GetWorld()->SpawnActor<ACityBlocksMaker>(ACityBlocksMaker::StaticClass(), FActorSpawnParameters{}));
+		blocksmaker->MakeGraph(intersections, segments);
+		//GenerateMeshIntersections(intersections);
 
 		generated = true;
 	}
@@ -150,18 +274,18 @@ void AProceduralMeshMaker::GenerateMeshIntersections(std::vector<Intersection*> 
 		middlePoint = middlePoint / intersection->branches.size();
 
 		// we pair segment ID to angle of the middlepoints of segment end close to intersection, to X-axis
-		std::vector<std::pair<int, double>> pointsPairVector;
+		std::vector<std::pair<int, float>> pointsPairVector;
 		pointsPairVector.reserve(intersection->branches.size());
 		for (auto branch : intersection->branches) {
 			// the middlepoint of the segment is transformed to coordinate system with center of all points as origin
 			bool isStart = (branch->start - intersection->position).length() < (branch->end - intersection->position).length();
 			Point transformedMiddlePoint = (isStart ? branch->start : branch->end) - middlePoint;
-			double angle = atan2(transformedMiddlePoint.y, transformedMiddlePoint.x);
-			pointsPairVector.emplace_back(std::pair<int, double>{branch->ID, angle});
+			float angle = atan2(transformedMiddlePoint.y, transformedMiddlePoint.x);
+			pointsPairVector.emplace_back(std::pair<int, float>{branch->ID, angle});
 		}
 
 		// we want array of sorted segments
-		auto cmp = [](const std::pair<int, double>& a, const std::pair<int, double>& b) {
+		auto cmp = [](const std::pair<int, float>& a, const std::pair<int, float>& b) {
 			return (a.second < b.second);
 		};
 
@@ -257,10 +381,12 @@ TArray<FVector> AProceduralMeshMaker::CalculateVerticesForProceduralMesh(TArray<
 	}
 
 	// first we must subdivide the segments into road parts, each road part gets the whole texture assigned to it
-	roadMath::SubdivideRoadsByLength(startPoints, endPoints, roadData,
-		static_cast<float>(Config::DEFAULT_ROADPART_LENGTH * 100));
+	//roadMath::SubdivideRoadsByLength(startPoints, endPoints, roadData,
+	//	(Config::DEFAULT_ROADPART_LENGTH * 100));
 
 	TArray<FVector> vertices{};
+	TArray<FVector> arrowVertices{};
+
 
 	for (int i = 0; i < startPoints.Num(); i++) {
 		/* randomize the Z value a bit */
@@ -270,7 +396,23 @@ TArray<FVector> AProceduralMeshMaker::CalculateVerticesForProceduralMesh(TArray<
 
 		TArray<FVector> fourCorners = roadMath::FindFourCornersFromStartAndEndPoint(startPoints[i], endPoints[i], roadData[i].roadWidth);
 		vertices.Append(fourCorners);
+
+
+		/* TODO: remove this */
+		
+		FVector dir = endPoints[i] - startPoints[i];
+		FVector p{ -dir.Y, dir.X, 0.0 };
+		p.Normalize();
+		FVector p1 = endPoints[i] - (roadData[i].roadWidth / 2) * p;
+		FVector p2 = endPoints[i] + (roadData[i].roadWidth / 2) * p;
+		dir.Normalize();
+		FVector p3 = endPoints[i] + (roadData[i].roadWidth * dir * 0.86);
+		arrowVertices.Append(TArray<FVector>{p1, p2, p3});
+		
+
 	}
+
+	vertices.Append(arrowVertices);
 
 	return vertices;
 }
@@ -281,16 +423,26 @@ TArray<int> AProceduralMeshMaker::CalculateTrianglesForProceduralMesh(TArray<FVe
 {
 	// checks to see if number of vertices is factor of 4
 	if (vertices.Num() % 4 != 0) {
-		UE_LOG(LogTemp, Error, TEXT("ERROR: Number of vertices is not a factor of 4."));
-		return {};
+		//UE_LOG(LogTemp, Error, TEXT("ERROR: Number of vertices is not a factor of 4."));
+		//return {};
 	}
 
 	TArray<int> triangles{};
 
-	for (int i = 0; i < vertices.Num() / 4; i++) {
-		triangles.Append(TArray<int>{ i * 4 + 0, i * 4 + 2, i * 4 + 1,
-			/* two triangles */  i * 4 + 2, i * 4 + 3, i * 4 + 1 });
+	//for (int i = 0; i < vertices.Num() / 4; i++) {
+	//	triangles.Append(TArray<int>{ i * 4 + 0, i * 4 + 2, i * 4 + 1,
+			/* two triangles */  //i * 4 + 2, i * 4 + 3, i * 4 + 1 });
+	//}
+
+	for (int i = 0; i < vertices.Num() * 4 / 7; i = i+4) {
+		triangles.Append(TArray<int>{ i, i + 2, i + 1,
+			/* two triangles */  i + 2, i + 3, i + 1 });
 	}
+
+	for (int i = vertices.Num() * 4 / 7; i < vertices.Num(); i=i+3) {
+		triangles.Append(TArray<int>{i, i + 1, i + 2});
+	}
+
 
 	return triangles;
 }
@@ -300,14 +452,14 @@ TArray<FVector2D> AProceduralMeshMaker::CalculateUVsForProceduralMesh(TArray<FVe
 	TArray<FVector2D> UVs{};
 
 	if (vertices.Num() % 4 != 0) {
-		UE_LOG(LogTemp, Error, TEXT("Invalid number of vertices. Not a factor of 4!"));
-		return UVs;
+		//UE_LOG(LogTemp, Error, TEXT("Invalid number of vertices. Not a factor of 4!"));
+		//return UVs;
 	}
 
 	for (int i = 0; i < vertices.Num() / 4; i++) {
 		// check the length
 		float length = FVector::Dist(vertices[i * 4], vertices[i * 4 + 2]);
-		float roadLength = static_cast<float>(Config::DEFAULT_ROADPART_LENGTH * 100);
+		float roadLength = (Config::DEFAULT_ROADPART_LENGTH * 100);
 		// if more than one percent difference
 		if (FMath::Abs(roadLength - length) > roadLength/100) {
 			UVs.Append(TArray<FVector2D> {FVector2D{0.0f, 0.0f}, FVector2D{ 1.0f, 0.0f },

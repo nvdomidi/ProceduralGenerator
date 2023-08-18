@@ -29,11 +29,14 @@ public:
 	static int IDTracker;
 	int ID{};
 	/* these positions are used two give width to the segment */
-	float startOrder{ -1 };
-	float endOrder{ -1 };
+	double startOrder{ -1 };
+	double endOrder{ -1 };
 	/* start intersection and end intersection */
 	int startIntersectionID{ -1 };
 	int endIntersectionID{ -1 };
+	/* start point and end point */
+	int startPointID{ -1 };
+	int endPointID{ -1 };
 
 	/** time-step delay before this road is evaluated */
 	double t;
@@ -180,7 +183,7 @@ public:
 		IDTracker++;
 	}
 
-	bool IsAtQueriedPosition(Point pos) { return (this->position == pos); };
+	bool IsAtQueriedPosition(Point pos) { return ((this->position - pos).length() < 0.0001); };
 
 	void printIntersection() {
 		UE_LOG(LogTemp, Warning, TEXT("Intersection: %d, Position is: (%f,%f)"), branches.size(), position.x, position.y);
@@ -409,3 +412,7 @@ void removeDuplicateIntersections(std::vector<Intersection*>& intersections);
 void mergeCloseIntersections(std::vector<Intersection*>& intersections);
 void cutRoadFromSpecifiedEndBySpecifiedAmount(Segment* segment, bool isStart, double amount);
 void cutRoadsLeadingIntoIntersections(std::vector<Segment*>& segments, std::vector<Intersection*> intersections);
+
+bool arePerpendicular(Segment* s1, Segment* s2);
+bool isClose(Point pos1, Point pos2);
+void regenerateIntersections(Quadtree<Segment*> qTree, std::vector<Segment*>& segments, std::vector<Intersection*>& intersections);
