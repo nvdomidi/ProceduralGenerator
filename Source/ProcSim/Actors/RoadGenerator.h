@@ -43,7 +43,7 @@ public:
 	/* set actor for intersection showing */
 	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
 	void SetIntersectionBlueprints(TSubclassOf<AActor> TwoWay, TSubclassOf<AActor> ThreeWay,
-		TSubclassOf<AActor> FourWay, TSubclassOf<AActor> MoreThanFourWay, TSubclassOf<AActor> Intersection);
+		TSubclassOf<AActor> FourWay, TSubclassOf<AActor> MoreThanFourWay, TSubclassOf<AActor> Intersection, TSubclassOf<AActor> Check);
 
 	/* Creates the procedural mesh maker and generates the mesh */
 	void CreateProceduralMeshForRoads(TArray<FVector> startPoints, TArray<FVector> endPoints, TArray<FMetaRoadData> roadData);
@@ -66,6 +66,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
 	void GenerateMeshIntersections(AProceduralMeshMaker* ProcMeshMaker);
 
+	void VisualizeSegmentLinks();
+
 	//UPROPERTY(EditAnywhere, Category = "RoadGenerator")
 	TSubclassOf<AActor> RoadBlueprint;
 
@@ -77,6 +79,7 @@ public:
 	TSubclassOf<AActor> MoreThanFourWayBlueprint;
 	/* This blueprint is going to be actually spawned at the intersection location */
 	TSubclassOf<AActor> IntersectionBlueprint;
+	TSubclassOf<AActor> CheckBlueprint;
 
 
 	UPROPERTY()

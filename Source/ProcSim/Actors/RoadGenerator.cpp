@@ -90,6 +90,21 @@ void ARoadGenerator::CreateRandomHeatmapAndApplyToPlane(UProceduralMeshComponent
 	this->heatmap = heat;
 }
 
+void ARoadGenerator::VisualizeSegmentLinks() {
+	for (auto segment : segments) {
+		Point dir = segment->end - segment->start;
+		dir = dir / dir.length();
+
+		Point pos = segment->start + dir * segment->length() / 2;
+		FVector pos3d{ static_cast<float>(pos.x), static_cast<float>(pos.y), 55.0f };
+
+		auto bp = GetWorld()->SpawnActor<AActor>(this->IntersectionBlueprint, pos3d, FRotator{}, FActorSpawnParameters{});
+		auto textlinks = Cast<UTextRenderComponent>(bp->GetComponentByClass(UTextRenderComponent::StaticClass()));
+		textlinks->SetText(FString::Printf(TEXT("b: %d, f: %d"), segment->links_b.size(), segment->links_f.size()));
+	}
+}
+
+
 // Main algorithm for creating the 3D roads
 bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness, int numSegments)
 {
@@ -129,13 +144,33 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 	UE_LOG(LogTemp, Warning, TEXT("Number of intersections: %d, intersectionsradius: %d, snaps: %d"),
 		debugData.intersections.size(), debugData.intersectionsRadius.size(), debugData.snaps.size());
 
+	populateSegmentLinks(segments);
+	/* find intersections here */
+	GenerateIntersections(segments, intersections);
 
+	UE_LOG(LogTemp, Warning, TEXT("intersections size: %d"), intersections.size());
 
 	FVector midPoint = (regionStartPoint + regionEndPoint) / 2;
 
-	regenerateIntersections(qTree, segments, intersections);
+
+	for (auto segment : segments) {
+		for (auto other : qTree.retrieve(segment->limits())) {
+			auto in = other->intersectWith(segment);
+			if (in != nullptr) {
+				if (in->t != 0 && in->t != 1) {
+					float xx = in->x * 100 + midPoint.X;
+					float yy = in->y * 100 + midPoint.Y;
+					GetWorld()->SpawnActor<AActor>(CheckBlueprint, FVector{ xx,yy,70.0f }, FRotator{}, FActorSpawnParameters{});
+				}
+			}
+		}
+	}
+
+	//regenerateIntersections(qTree, segments, intersections);
 
 	this->TransformToUECoordinates(midPoint);
+
+	VisualizeSegmentLinks();
 
 	this->RemoveOutsideOfRegion(regionStartPoint, regionEndPoint);
 
@@ -160,6 +195,9 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 	
 	findOrderOfRoads(segments);
 
+	/* adding something to  visualize backwards and forwards links */
+
+
 	/* generate intersections procedural mesh */
 	TArray<FVector> startPoints, endPoints;
 	TArray<FMetaRoadData> roadData;
@@ -171,6 +209,9 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 	CreateIntersections(midPoint);
 
 	//GenerateMeshIntersections(this->ProceduralMeshMaker);
+
+	
+
 
 	return true;
 }
@@ -243,7 +284,7 @@ bool ARoadGenerator::CreateBlocks()
 		for (int i : cycle) {
 			positions.Add(graph.vertices[i]->data->position);
 		}
-		if (roadMath::isConvex(positions))
+		if (roadMath::isConvex(positions) || true)
 			convexCycles.Add(cycle);
 	}
 
@@ -397,13 +438,14 @@ void ARoadGenerator::RemoveOutsideOfRegion(FVector regionStartPoint, FVector reg
 
 // you have to calls this first before CreateIntersections
 void ARoadGenerator::SetIntersectionBlueprints(TSubclassOf<AActor> TwoWay, TSubclassOf<AActor> ThreeWay,
-	TSubclassOf<AActor> FourWay, TSubclassOf<AActor> MoreThanFourWay, TSubclassOf<AActor> Intersection)
+	TSubclassOf<AActor> FourWay, TSubclassOf<AActor> MoreThanFourWay, TSubclassOf<AActor> Intersection, TSubclassOf<AActor> Check)
 {
 	this->TwoWayBlueprint = TwoWay;
 	this->ThreeWayBlueprint = ThreeWay;
 	this->FourWayBlueprint = FourWay;
 	this->MoreThanFourWayBlueprint = MoreThanFourWay;
 	this->IntersectionBlueprint = Intersection;
+	this->CheckBlueprint = Check;
 }
 
 // create intersections and spawn something on them

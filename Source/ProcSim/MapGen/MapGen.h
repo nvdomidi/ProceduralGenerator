@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <climits>
 #include <memory>
+#include <unordered_map>
 
 #include "Config.h"
 #include "Quadtree.h"
@@ -243,8 +244,10 @@ void Segment::split(Point point, Segment* thirdSegment, std::vector<Segment*>& s
 	thirdSegment->links_f.push_back(secondSplit);
 
 	/* Adding new intersection */
-	Intersection* intersection = new Intersection(std::vector<Segment*>{firstSplit, secondSplit, thirdSegment}, point);
-	intersections.push_back(intersection);
+	
+	// TODO: fix
+	//Intersection* intersection = new Intersection(std::vector<Segment*>{firstSplit, secondSplit, thirdSegment}, point);
+	//intersections.push_back(intersection);
 
 }
 
@@ -415,4 +418,5 @@ void cutRoadsLeadingIntoIntersections(std::vector<Segment*>& segments, std::vect
 
 bool arePerpendicular(Segment* s1, Segment* s2);
 bool isClose(Point pos1, Point pos2);
-void regenerateIntersections(Quadtree<Segment*> qTree, std::vector<Segment*>& segments, std::vector<Intersection*>& intersections);
+void populateSegmentLinks(std::vector<Segment*>& segments);
+void GenerateIntersections(std::vector<Segment*>& segments, std::vector<Intersection*>& intersections);

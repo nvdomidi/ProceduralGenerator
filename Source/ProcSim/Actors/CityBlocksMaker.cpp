@@ -52,7 +52,7 @@ Graph<Intersection*> ACityBlocksMaker::MakeGraph(std::vector<Intersection*> inte
 		graph.AddNode(intersection->ID, intersection);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("whats giong on segment size: %d"), segments.size());
+	/*UE_LOG(LogTemp, Warning, TEXT("whats giong on segment size: %d"), segments.size());
 
 	for (auto segment : segments) {
 		UE_LOG(LogTemp, Warning, TEXT("%d to %d"), segment->startIntersectionID, segment->endIntersectionID);
@@ -64,9 +64,9 @@ Graph<Intersection*> ACityBlocksMaker::MakeGraph(std::vector<Intersection*> inte
 		for (auto a : s.second->adj) {
 			UE_LOG(LogTemp, Warning, TEXT("HAS ADJ: %d"), a);
 		}
-	}
+	}*/
 
-	/*
+	
 	int e = 0;
 	std::set<std::pair<int, int>> edges;
 
@@ -171,15 +171,15 @@ Graph<Intersection*> ACityBlocksMaker::MakeGraph(std::vector<Intersection*> inte
 		UE_LOG(LogTemp, Warning, TEXT("NULLPTR"));
 		return graph;
 	}
-	ProceduralMesh->CreateMeshSection(0, vertices, triangles, TArray<FVector>(),
-		TArray<FVector2D>(), TArray<FColor>(), TArray<FProcMeshTangent>(), true);
+	//ProceduralMesh->CreateMeshSection(0, vertices, triangles, TArray<FVector>(),
+	//	TArray<FVector2D>(), TArray<FColor>(), TArray<FProcMeshTangent>(), true);
 
 
 
 
 	UE_LOG(LogTemp, Warning, TEXT("vertices: %d"), graph.vertices.size());
 	UE_LOG(LogTemp, Warning, TEXT("edges: %d"), e);
-	UE_LOG(LogTemp, Warning, TEXT("no duplicate edges: %d"), edges.size());*/
+	UE_LOG(LogTemp, Warning, TEXT("no duplicate edges: %d"), edges.size());
 
 
 	return graph;

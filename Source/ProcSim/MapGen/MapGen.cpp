@@ -85,19 +85,20 @@ bool localConstraints(Segment* segment, std::vector<Segment*>& segments, Quadtre
 					segment->links_f.push_back(other);
 					(debugData).snaps.push_back({ point.x, point.y });
 
+					// TODO: fix
 					/* adding the newly created segment to the previously created intersection*/
-					for (auto intersection : intersections) {
+					//for (auto intersection : intersections) {
 						
-						if (intersection->IsAtQueriedPosition(point)) {
-							intersection->branches.push_back(segment);
-							bool isStart = ((segment->start - intersection->position).length() < (segment->end - intersection->position).length());
-							if (isStart)
-								segment->startIntersectionID = intersection->ID;
-							else
-								segment->endIntersectionID = intersection->ID;
-							break;
-						}
-					}
+						//if (intersection->IsAtQueriedPosition(point)) {
+						//	intersection->branches.push_back(segment);
+						//	bool isStart = ((segment->start - intersection->position).length() < (segment->end - intersection->position).length());
+						//	if (isStart)
+						//		segment->startIntersectionID = intersection->ID;
+						//	else
+						//		segment->endIntersectionID = intersection->ID;
+						//	break;
+						//}
+					//}
 
 
 					return true;
@@ -293,126 +294,6 @@ void generationStep(
 		if (minSegment->setupBranchLinks != nullptr) {
 			minSegment->setupBranchLinks();
 		};
-		/* find the intersections here */
-		// 1. If the back links are more than one = intersection
-		if (minSegment->links_b.size() > 1) {
-			std::vector<Segment*> intersectionLinks{};
-			for (auto segment : minSegment->links_b)
-				intersectionLinks.push_back(segment);
-			intersectionLinks.push_back(minSegment);
-
-			bool found = false;
-			for (auto intersection : intersections) {
-				if (intersection->IsAtQueriedPosition(minSegment->start)) {
-					found = true;
-					for (auto link : intersectionLinks) {
-						if (std::find(intersection->branches.begin(), intersection->branches.end(), link) == intersection->branches.end())
-						{
-							intersection->branches.push_back(link);
-							if ((link->start - intersection->position).length() < (link->end - intersection->position).length())
-								link->startIntersectionID = intersection->ID;
-							else
-								link->endIntersectionID = intersection->ID;
-						}
-					}
-				}
-			}
-			if (!found)
-				intersections.push_back(new Intersection{ intersectionLinks, minSegment->start });
-		}
-		// 2. If the back links are only one, check the angle between them
-		else if (minSegment->links_b.size() == 1) {
-			//double angle = Math::angleBetween(minSegment->end - minSegment->start,
-			//	minSegment->links_b[0]->end - minSegment->links_b[0]->start);
-
-			double angle = Math::minDegreeDifference(minSegment->links_b[0]->dir(), minSegment->dir());
-
-			
-		
-
-			// if angle is more than 20 degrees = intersection
-			if (abs(fmod(angle, 180)) > 20) {
-				std::vector<Segment*> intersectionLinks{minSegment, minSegment->links_b[0]};
-				bool found = false;
-				for (auto intersection : intersections) {
-					if (intersection->IsAtQueriedPosition(minSegment->start)) {
-						found = true;
-						for (auto link : intersectionLinks) {
-							if (std::find(intersection->branches.begin(), intersection->branches.end(), link) == intersection->branches.end())
-							{
-								intersection->branches.push_back(link);
-								if ((link->start - intersection->position).length() < (link->end - intersection->position).length())
-									link->startIntersectionID = intersection->ID;
-								else
-									link->endIntersectionID = intersection->ID;
-							}
-						}
-					}
-				}
-				if (!found)
-					intersections.push_back(new Intersection{ intersectionLinks, minSegment->start });
-			}
-
-		}
-		// 3. repeat the same with front
-		if (minSegment->links_f.size() > 1) {
-			std::vector<Segment*> intersectionLinks;
-			for (auto segment : minSegment->links_f)
-				intersectionLinks.push_back(segment);
-			intersectionLinks.push_back(minSegment);
-
-			bool found = false;
-			for (auto intersection : intersections) {
-				if (intersection->IsAtQueriedPosition(minSegment->end)) {
-					found = true;
-					for (auto link : intersectionLinks) {
-						if (std::find(intersection->branches.begin(), intersection->branches.end(), link) == intersection->branches.end())
-						{
-							intersection->branches.push_back(link);
-							if ((link->start - intersection->position).length() < (link->end - intersection->position).length())
-								link->startIntersectionID = intersection->ID;
-							else
-								link->endIntersectionID = intersection->ID;
-						}
-					}
-				}
-			}
-			if (!found)
-				intersections.push_back(new Intersection{ intersectionLinks, minSegment->end });
-		}
-		////
-		else if (minSegment->links_f.size() == 1) {
-			//double angle = Math::angleBetween(minSegment->end - minSegment->start,
-			//	minSegment->links_f[0]->end - minSegment->links_f[0]->start);
-
-			double angle = Math::minDegreeDifference(minSegment->links_b[0]->dir(), minSegment->dir());
-
-			// if angle is more than 20 degrees = intersection
-			if (abs(fmod(angle, 180)) > 20) {
-				std::vector<Segment*> intersectionLinks{minSegment, minSegment->links_f[0]};
-				bool found = false;
-				for (auto intersection : intersections) {
-					if (intersection->IsAtQueriedPosition(minSegment->end)) {
-						found = true;
-						for (auto link : intersectionLinks) {
-							if (std::find(intersection->branches.begin(), intersection->branches.end(), link) == intersection->branches.end())
-							{
-								intersection->branches.push_back(link);
-								if ((link->start - intersection->position).length() < (link->end - intersection->position).length())
-									link->startIntersectionID = intersection->ID;
-								else
-									link->endIntersectionID = intersection->ID;
-							}
-						}
-					}
-				}
-				if (!found)
-					intersections.push_back(new Intersection{ intersectionLinks, minSegment->end });
-			}
-
-		}
-
-		/* end finding intersections*/
 
 		segments.push_back(minSegment);
 		Bounds minSegmentLimits = minSegment->limits();
@@ -705,213 +586,57 @@ bool isClose(Point pos1, Point pos2)
 	return (pos1 - pos2).length() < 0.0001;
 }
 
-void regenerateIntersections(Quadtree<Segment*> qTree, std::vector<Segment*>& segments, std::vector<Intersection*>& intersections)
+struct PointHash {
+	size_t operator()(const Point& p) const {
+		return std::hash<double>()(p.x) ^ std::hash<double>()(p.y);
+	}
+};
+
+void populateSegmentLinks(std::vector<Segment*>& segments) {
+	// Map for storing segments based on their start or end points
+	std::unordered_map<Point, std::vector<Segment*>, PointHash> segmentsMap;
+
+	// Populate the map
+	for (Segment* segment : segments) {
+		segmentsMap[segment->start].push_back(segment);
+		segmentsMap[segment->end].push_back(segment);
+	}
+
+	// Populate links for each segment
+	for (Segment* segment : segments) {
+		// Populate links_b for the segment's start point
+		if (segmentsMap.find(segment->start) != segmentsMap.end()) {
+			segment->links_b = segmentsMap[segment->start];
+		}
+
+		// Populate links_f for the segment's end point
+		if (segmentsMap.find(segment->end) != segmentsMap.end()) {
+			segment->links_f = segmentsMap[segment->end];
+		}
+
+		// Removing current segment from its own links_b and links_f
+		segment->links_b.erase(std::remove(segment->links_b.begin(), segment->links_b.end(), segment), segment->links_b.end());
+		segment->links_f.erase(std::remove(segment->links_f.begin(), segment->links_f.end(), segment), segment->links_f.end());
+	}
+}
+
+void GenerateIntersections(std::vector<Segment*>& segments, std::vector<Intersection*>& intersections)
 {
-	//std::unordered_set<Point> positions;
-
-	//intersections = {};
-	//for (auto segment : segments) {
-	//	segment->startIntersectionID = -1;
-	//	segment->endIntersectionID = -1;
-	//}
-
-	//for (auto segment : segments) {
-	//	std::vector<std::pair<Segment*, bool>> connectedToStart{};
-	//	std::vector<std::pair<Segment*, bool>> connectedToEnd{};
-
-	//	for (auto other : qTree.retrieve(segment->limits())) {
-	//		if (isClose(other->start, segment->start)) {
-	//			connectedToStart.push_back({ other,true });
-	//		}
-	//		else if (isClose(other->end, segment->start)) {
-	//			connectedToStart.push_back({ other,false });
-	//		}
-	//		else if (isClose(other->start, segment->end)) {
-	//			connectedToEnd.push_back({ other,true });
-	//		}
-	//		else if (isClose(other->end, segment->end)) {
-	//			connectedToEnd.push_back({ other,false });
-	//		}
-	//	}
-
-	//	if (connectedToStart.size() > 1) {
-	//		auto cmpToIntersection = [segment](Intersection* intersection) { return isClose(intersection->position, segment->start); };
-	//		if (std::find_if(intersections.begin(), intersections.end(), cmpToIntersection) == intersections.end()) {
-	//			Intersection* intersection = new Intersection({}, segment->start);
-	//			for (auto pair : connectedToStart) {
-	//				if (pair.second)
-	//					pair.first->startIntersectionID = intersection->ID;
-	//				else
-	//					pair.first->endIntersectionID = intersection->ID;
-	//			}
-	//			std::vector<Segment*> links;
-	//			std::transform(connectedToStart.begin(), connectedToStart.end(), std::back_inserter(links),
-	//				[](const auto& pair) { return pair.first; });
-
-	//			intersection->branches = links;
-	//			intersections.push_back(intersection);
-	//		}
-	//	}
-	//	
-	//	else if (connectedToStart.size() == 1) {
-	//		//check angle
-	//		Segment* other = connectedToStart[0].first;
-	//		if (arePerpendicular(other, segment)) {
-	//			auto cmpToIntersection = [segment](Intersection* intersection) { return isClose(intersection->position, segment->start); };
-	//			if (std::find_if(intersections.begin(), intersections.end(), cmpToIntersection) == intersections.end()) {
-	//				Intersection* intersection = new Intersection({}, segment->start);
-
-	//				if (connectedToStart[0].second)
-	//					connectedToStart[0].first->startIntersectionID = intersection->ID;
-	//				else
-	//					connectedToStart[0].first->endIntersectionID = intersection->ID;
-
-	//				std::vector<Segment*> links;
-	//				std::transform(connectedToStart.begin(), connectedToStart.end(), std::back_inserter(links),
-	//					[](const auto& pair) { return pair.first; });
-
-	//				intersection->branches = links;
-	//				intersections.push_back(intersection);
-	//			}
-	//		}
-	//	}
-
-	//	if (connectedToEnd.size() > 1) {
-	//		auto cmpToIntersection = [segment](Intersection* intersection) { return isClose(intersection->position, segment->end); };
-	//		if (std::find_if(intersections.begin(), intersections.end(), cmpToIntersection) == intersections.end()) {
-	//			Intersection* intersection = new Intersection({}, segment->end);
-	//			for (auto pair : connectedToEnd) {
-	//				if (pair.second)
-	//					pair.first->startIntersectionID = intersection->ID;
-	//				else
-	//					pair.first->endIntersectionID = intersection->ID;
-	//			}
-	//			std::vector<Segment*> links;
-	//			std::transform(connectedToEnd.begin(), connectedToEnd.end(), std::back_inserter(links),
-	//				[](const auto& pair) { return pair.first; });
-
-	//			intersection->branches = links;
-	//			intersections.push_back(intersection);
-	//		}
-	//	}
-
-	//	else if (connectedToEnd.size() == 1) {
-	//		//check angle
-	//		Segment* other = connectedToEnd[0].first;
-	//		if (arePerpendicular(other, segment)) {
-	//			auto cmpToIntersection = [segment](Intersection* intersection) { return isClose(intersection->position, segment->end); };
-	//			if (std::find_if(intersections.begin(), intersections.end(), cmpToIntersection) == intersections.end()) {
-	//				Intersection* intersection = new Intersection({}, segment->end);
-
-	//				if (connectedToEnd[0].second)
-	//					connectedToEnd[0].first->startIntersectionID = intersection->ID;
-	//				else
-	//					connectedToEnd[0].first->endIntersectionID = intersection->ID;
-
-	//				std::vector<Segment*> links;
-	//				std::transform(connectedToEnd.begin(), connectedToEnd.end(), std::back_inserter(links),
-	//					[](const auto& pair) { return pair.first; });
-
-	//				intersection->branches = links;
-	//				intersections.push_back(intersection);
-	//			}
-	//		}
-	//	}
-	//}
-
-	intersections = {};
-
-	
-
+	std::unordered_set<Point> seenPoints{};
 
 	for (auto segment : segments) {
 
-		Intersection* startIntersection = nullptr;
-		Intersection* endIntersection = nullptr;
-
-		segment->startIntersectionID = -1;
-		segment->endIntersectionID = -1;
-
-
-		std::vector<std::pair<Segment*, bool>> connectedToStart{};
-		std::vector<std::pair<Segment*, bool>> connectedToEnd{};
-
-
-		std::vector<Segment*> others = qTree.retrieve(segment->limits());
-
-		for (auto other : others) {
-			if (isClose(other->start, segment->start)) {
-				connectedToStart.push_back(std::pair<Segment*, bool>{other, true});
+		auto func = [&segment, &seenPoints, &intersections](Point pos, std::vector<Segment*> links, bool isStart) {
+			if (seenPoints.find(pos) == seenPoints.end()) {
+				links.push_back(segment);
+				Intersection* intersection = new Intersection(links, pos);
+				intersections.push_back(intersection);
+				seenPoints.insert(pos);
 			}
-			else if (isClose(other->end, segment->start)) {
-				connectedToStart.push_back(std::pair<Segment*, bool>{other, false});
-			}
-			else if (isClose(other->start, segment->end)) {
-				connectedToEnd.push_back(std::pair<Segment*, bool>{other, true});
-			}
-			else if (isClose(other->end, segment->end)) {
-				connectedToEnd.push_back(std::pair<Segment*, bool>{other, false});
-			}
-		}
-		auto cmpStart = [segment](Intersection* intersection) { return intersection->IsAtQueriedPosition(segment->start); };
-		auto cmpEnd = [segment](Intersection* intersection) { return intersection->IsAtQueriedPosition(segment->end); };
+		};
+		
+		func(segment->start, segment->links_b, true);
+		func(segment->end, segment->links_f, false);
 
-		if (connectedToStart.size() >= 1 && std::find_if(intersections.begin(), intersections.end(), cmpStart) == intersections.end()) {
-			std::vector<Segment*> branches{segment};
-			for (auto pair : connectedToStart)
-				branches.push_back(pair.first);
-			startIntersection = new Intersection(branches, segment->start);
-			segment->startIntersectionID = startIntersection->ID;
-			for (auto pair : connectedToStart) {
-				if (pair.second)
-					pair.first->startIntersectionID = startIntersection->ID;
-				else
-					pair.first->endIntersectionID = startIntersection->ID;
-			}
-		}
-
-		if (connectedToEnd.size() >= 1 && std::find_if(intersections.begin(), intersections.end(), cmpStart) == intersections.end()) {
-			std::vector<Segment*> branches{segment};
-			for (auto pair : connectedToEnd)
-				branches.push_back(pair.first);
-			endIntersection = new Intersection(branches, segment->end);
-			segment->endIntersectionID = endIntersection->ID;
-			for (auto pair : connectedToEnd) {
-				if (pair.second)
-					pair.first->startIntersectionID = endIntersection->ID;
-				else
-					pair.first->endIntersectionID = endIntersection->ID;
-			}
-		}
-
-		bool foundStart = false;
-		bool foundEnd = false;
-		for (auto intersection : intersections) {
-			if (startIntersection != nullptr) {
-				if (intersection->IsAtQueriedPosition(startIntersection->position)) {
-					foundStart = true;
-				}
-			}
-			
-			if (endIntersection != nullptr) {
-				if (intersection->IsAtQueriedPosition(endIntersection->position)) {
-					foundEnd = true;
-				}
-			}
-		}
-		if (!foundStart && startIntersection != nullptr)
-		{
-			intersections.push_back(startIntersection);
-			UE_LOG(LogTemp, Warning, TEXT("adding startIntersection, %d"), startIntersection->ID);
-		}
-		if (!foundEnd && endIntersection != nullptr)
-		{
-			intersections.push_back(endIntersection);
-			UE_LOG(LogTemp, Warning, TEXT("adding endIntersection, %d"), endIntersection->ID);
-
-		}
 	}
-
-
-
 }

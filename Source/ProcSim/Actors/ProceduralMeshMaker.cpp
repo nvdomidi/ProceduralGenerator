@@ -403,10 +403,10 @@ TArray<FVector> AProceduralMeshMaker::CalculateVerticesForProceduralMesh(TArray<
 		FVector dir = endPoints[i] - startPoints[i];
 		FVector p{ -dir.Y, dir.X, 0.0 };
 		p.Normalize();
-		FVector p1 = endPoints[i] - (roadData[i].roadWidth / 2) * p;
-		FVector p2 = endPoints[i] + (roadData[i].roadWidth / 2) * p;
+		FVector p1 = endPoints[i] - (roadData[i].roadWidth) * p;
+		FVector p2 = endPoints[i] + (roadData[i].roadWidth) * p;
 		dir.Normalize();
-		FVector p3 = endPoints[i] + (roadData[i].roadWidth * dir * 0.86);
+		FVector p3 = endPoints[i] + (roadData[i].roadWidth * dir);
 		arrowVertices.Append(TArray<FVector>{p1, p2, p3});
 		
 

@@ -179,8 +179,8 @@ void CC_Visit(std::list<int>& p, std::list<std::list<int>>& C, int key, Graph<Me
 template<typename MetaData>
 void CC_Visit(std::list<int>& p, std::list<std::list<int>>& C, int key, Graph<MetaData>& graph, int depth = 0)
 {
-	if (depth > 4) {
-		return; // Stop further recursion if depth exceeds 20
+	if (depth > 15) {
+		return; // Stop further recursion if depth exceeds 
 	}
 
 	// the chordless path shouldn't be empty
