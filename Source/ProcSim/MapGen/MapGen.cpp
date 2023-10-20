@@ -626,7 +626,7 @@ void GenerateIntersections(std::vector<Segment*>& segments, std::vector<Intersec
 
 	for (auto segment : segments) {
 
-		auto func = [&segment, &seenPoints, &intersections](Point pos, std::vector<Segment*> links, bool isStart) {
+		auto func = [&segment, &seenPoints, &intersections](Point pos, std::vector<Segment*> links) {
 			if (seenPoints.find(pos) == seenPoints.end()) {
 				links.push_back(segment);
 				Intersection* intersection = new Intersection(links, pos);
@@ -635,8 +635,8 @@ void GenerateIntersections(std::vector<Segment*>& segments, std::vector<Intersec
 			}
 		};
 		
-		func(segment->start, segment->links_b, true);
-		func(segment->end, segment->links_f, false);
+		func(segment->start, segment->links_b);
+		func(segment->end, segment->links_f);
 
 	}
 }

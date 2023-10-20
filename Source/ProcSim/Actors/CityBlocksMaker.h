@@ -4,6 +4,7 @@
 
 #include "ProcSim/MapGen/MapGen.h"
 #include "ProcSim/BlocksGen/Graph.h"
+#include "ProcSim/BlocksGen/MinimalCycleBasis.h"
 #include "ProceduralMeshComponent.h"
 
 #include "CoreMinimal.h"
@@ -26,4 +27,16 @@ public:
 
 	/* Make cycles from the graph created */
 	TArray<TArray<int>> MakeCycles(Graph<Intersection*> graph);
+
+	/* Remove the outer cycles */
+	TArray<TArray<int>> RemoveOuterCycles(TArray<TArray<int>> cycles, Graph<Intersection*> graph);
+
+	/* recursive function */
+	void DFSCycles(std::shared_ptr<gte::MinimalCycleBasis<double>::Tree> tree, int& num);
+
+	/* Minimum Cycle Basis Extraction from the graph */
+	TArray<TArray<int>> MinimumCycleBasis(std::vector<Intersection*> intersections, std::vector<Segment*> segments);
+
+	std::vector<Intersection*> in11;
+	TArray<FVector> cyclepositions{};
 };
