@@ -33,157 +33,16 @@ Graph<Intersection*> ACityBlocksMaker::MakeGraph(std::vector<Intersection*> inte
 		}
 	}
 
-	for (auto segment : segments) {
-		if (std::find(intersectionIDs.begin(), intersectionIDs.end(), segment->startIntersectionID) == intersectionIDs.end() && segment->startIntersectionID != -1) {
-			UE_LOG(LogTemp, Warning, TEXT("startIntersectionID NOT FOUND: %d"), segment->startIntersectionID);
-		}
-		if (std::find(intersectionIDs.begin(), intersectionIDs.end(), segment->endIntersectionID) == intersectionIDs.end() && segment->endIntersectionID != -1) {
-			UE_LOG(LogTemp, Warning, TEXT("endIntersectionID NOT FOUND: %d"), segment->endIntersectionID);
-		}
-	}
-
-
-
 	Graph<Intersection*> graph;
-	
-
 	
 	// Node ID: intersection ID, Node MetaData: Intersection pointer
 	for (auto intersection : intersections) {
-		UE_LOG(LogTemp, Warning, TEXT("Adding Node#%d : (%f,%f)"), intersection->ID, intersection->position.x, intersection->position.y);
 		graph.AddNode(intersection->ID, intersection);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("whats giong on segment size: %d"), segments.size());
-
 	for (auto segment : segments) {
-		UE_LOG(LogTemp, Warning, TEXT("%d to %d"), segment->startIntersectionID, segment->endIntersectionID);
 		graph.AddEdge(segment->startIntersectionID, segment->endIntersectionID);
 	}
-
-	for (auto s : graph.vertices) {
-		
-		for (auto a : s.second->adj) {
-			UE_LOG(LogTemp, Warning, TEXT("HAS ADJ: %d"), a);
-		}
-	}
-
-	
-	/*int e = 0;
-	std::set<std::pair<int, int>> edges;
-
-	for (auto intersection : intersections) {
-		for (auto segment : intersection->branches) {
-
-			Point currPos = intersection->position;
-			Segment* currSegment = segment;
-			int nextID = -1;
-			int numSegments = 0;
-			while (true) {
-				numSegments++;
-				bool isStart = (currSegment->start - currPos).length() < (currSegment->end - currPos).length();
-				std::vector<Segment*> relevantLinks = isStart ? currSegment->links_f : currSegment->links_b;
-				int relevantIntersectionID = isStart ? currSegment->endIntersectionID : currSegment->startIntersectionID;
-				Point relevantEndPoint = isStart ? currSegment->end : currSegment->start;
-
-				if (relevantIntersectionID != -1) {
-					UE_LOG(LogTemp, Warning, TEXT("found edge"));
-					e++;
-					nextID = relevantIntersectionID;
-					break;
-				}
-				else if (relevantLinks.empty()) {
-					UE_LOG(LogTemp, Warning, TEXT("found dead end"));
-					nextID = -1;
-					break;
-				}
-				else if (relevantLinks.size() == 1) {
-					UE_LOG(LogTemp, Warning, TEXT("traversing"));
-					currPos = relevantEndPoint;
-					currSegment = relevantLinks[0];
-				}
-				else {
-					UE_LOG(LogTemp, Warning, TEXT("smth weird happening"));
-					if (numSegments > 10) {
-						break;
-					}
-				}
-
-			}
-
-			if (nextID != -1)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("Adding edge: %d :: %d"), intersection->ID, nextID);
-				if (graph.AddEdge(intersection->ID, nextID)) {
-					int first = (intersection->ID < nextID) ? intersection->ID : nextID;
-					int second = (intersection->ID < nextID) ? nextID : intersection->ID;
-					edges.insert(std::pair<int, int>{first, second});
-				}
-			}
-		}
-	}*/
-
-	//// block of code that shows the intersections
-	/*TArray<FVector> vertices{};
-	TArray<int> triangles{};
-
-	for (auto edge : edges) {
-		Point pos1 = graph.vertices[edge.first]->data->position;
-		Point pos2 = graph.vertices[edge.second]->data->position;
-		UE_LOG(LogTemp, Warning, TEXT("#%d pos1: (%f,%f)"), edge.first, pos1.x, pos1.y);
-		UE_LOG(LogTemp, Warning, TEXT("#%d pos2: (%f,%f)"), edge.second, pos2.x, pos2.y);
-
-		Point dir = pos2 - pos1;
-		Point perdir{ dir.y, -dir.x };
-		perdir = perdir / perdir.length();
-
-		float width = 50;
-
-		Point botleft = pos1 + perdir * width;
-		Point botright = pos1 - perdir * width;
-		Point topleft = pos2 + perdir * width;
-		Point topright = pos2 - perdir * width;
-
-		FVector bl{ static_cast<float>(botleft.x), static_cast<float>(botleft.y), 60 };
-		FVector br{ static_cast<float>(botright.x), static_cast<float>(botright.y), 60 };
-		FVector tl{ static_cast<float>(topleft.x), static_cast<float>(topleft.y), 60 };
-		FVector tr{ static_cast<float>(topright.x), static_cast<float>(topright.y), 60 };
-
-		vertices.Add(bl);
-		vertices.Add(br);
-		vertices.Add(tl);
-		vertices.Add(tr);
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("num vertices: %d"), vertices.Num());
-
-	
-	for (int i = 0; i < vertices.Num() / 4 ; i++) {
-		TArray<int> triangle = { i * 4 + 0, i * 4 + 1, i * 4 + 2,
-							     i * 4 + 1, i * 4 + 3, i * 4 + 2 };
-		triangles.Append(triangle);
-	}
-
-	ProceduralMesh = NewObject<UProceduralMeshComponent>(this);
-	ProceduralMesh->SetupAttachment(this->RootComponent);
-	ProceduralMesh->RegisterComponent();
-	
-
-	if (ProceduralMesh == nullptr) {
-		UE_LOG(LogTemp, Warning, TEXT("NULLPTR"));
-		return graph;
-	}*/
-	//ProceduralMesh->CreateMeshSection(0, vertices, triangles, TArray<FVector>(),
-	//	TArray<FVector2D>(), TArray<FColor>(), TArray<FProcMeshTangent>(), true);
-
-
-
-
-	/*UE_LOG(LogTemp, Warning, TEXT("vertices: %d"), graph.vertices.size());
-	UE_LOG(LogTemp, Warning, TEXT("edges: %d"), e);
-	UE_LOG(LogTemp, Warning, TEXT("no duplicate edges: %d"), edges.size());*/
-
-
 	return graph;
 }
 
@@ -204,6 +63,180 @@ TArray<TArray<int>> ACityBlocksMaker::MakeCycles(Graph<Intersection*> graph)
 	}
 
 	return Cycles;
+}
+
+FString convertFaceToString(TArray<int> face) {
+	FString res = "";
+	int minId = std::numeric_limits<int>::max();
+	int minIdInd = 0;
+
+	//start traversing the face at the minimum id, since same faces may have different starting indices
+	for (int i = 0; i < face.Num(); i++) {
+		if (face[i] < minId) {
+			minId = face[i];
+			minIdInd = i;
+		}
+	}
+
+	for (int i = minIdInd; i < minIdInd + face.Num(); i++) {
+		int toAdd = face[i % face.Num()];
+		res += (FString::FromInt(toAdd) + ",");
+	}
+
+	return res;
+}
+
+int getMostCCW(int v, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph) {
+	Point v_p = graph.vertices[v]->data->position;
+	int mostCC = -1;
+	float minA = std::numeric_limits<float>::max();
+
+	int colinear = -1;
+
+	int leastClockwise = -1;
+	float maxA = -std::numeric_limits<float>::max();
+
+	for (int i = 0; i < candidates.Num(); i++) {
+		Point v_cand = graph.vertices[candidates[i]]->data->position;
+		Point nextEdge = v_cand - v_p;
+		int orient = FMath::Sign(Math::crossProduct(prevEdge, nextEdge));
+		prevEdge = prevEdge / prevEdge.length();
+		nextEdge = nextEdge / nextEdge.length();
+
+		//angle represents angle we have to rotate prevedge to get to nextedge, 
+	    //represents clockwise or ccw respective to orientation
+	    //so if orientation is -1, want the most counter clockwise rotated
+		float a = Math::angleBetween(prevEdge, nextEdge);
+
+		if (orient == -1 && maxA < a) {
+			mostCC = candidates[i];
+			maxA = a;
+		}
+		else if (orient == 0) {
+			colinear = candidates[i];
+		}
+		else if (orient == 1 && minA > a) {
+			leastClockwise = candidates[i];
+			minA = a;
+		}
+	}
+
+	if (mostCC != -1) {
+		return mostCC;
+	} else if (colinear != -1) {
+		return colinear;
+	} else {
+		return leastClockwise;
+	}
+}
+
+// return true if face is in CCW order, false o.w
+bool isCCW(TArray<int> face, Graph<Intersection*> graph) {
+	bool ccw = false;
+	if (face.Num() > 2) {
+		float orient = 0;
+		for (int i = 0; i < face.Num(); i++) {
+			Point p1 = graph.vertices[face[i]]->data->position;
+			Point p2 = graph.vertices[face[(i+1)%face.Num()]]->data->position;
+			orient += (p2.x - p1.x) * (p2.y + p1.y);
+		}
+		if (orient > 0)
+			ccw = true;
+	}
+
+	return ccw;
+}
+
+// Gets the most counterclockwise candidate, if none exist return -1
+int getBestFaceCandidate(int nextVert, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph)
+{
+	if (candidates.Num() > 1) {
+		int mostCC = getMostCCW(nextVert, candidates, prevEdge, graph);
+		return mostCC;
+	}
+	else if (candidates.Num() == 1) {
+		return candidates[0];
+	}
+	else {
+		return -1;
+	}
+
+}
+
+TArray<TArray<int>> ACityBlocksMaker::FindFaces(Graph<Intersection*> graph)
+{
+	TArray<TArray<int>> faces;
+	TSet<int> finishedVerts;
+	TSet<FString> foundFaces;
+
+	// iterate over each vertex
+	for (auto vert : graph.vertices) {
+		int v = vert.first;
+		auto neighbors = vert.second->adj;
+		
+		// iterate over all neighbors
+		for (int vadj : neighbors) {
+			TArray<int> visit;
+			int prevVert = v;
+			int nextVert = vadj;
+			visit.Add(nextVert);
+
+			bool foundV = false;
+			bool forceStop = false;
+
+			while (!foundV && visit.Num() < 50 && !forceStop) {
+
+				// stop if finished vertex is visited
+				if (finishedVerts.Contains(nextVert))
+					forceStop = true;
+
+				Point v_p = graph.vertices[prevVert]->data->position;
+				Point vadj_p = graph.vertices[nextVert]->data->position;
+				Point prevEdge = vadj_p - v_p;
+
+				TArray<int> candidates{};
+
+				// each neighbor of neighbor is a potential candidate
+				for (int cand : graph.vertices[nextVert]->adj) {
+					if (cand != prevVert) {
+						candidates.Add(cand);
+					}
+				}
+
+				// go to next vertex (next BEST vertex)
+				if (candidates.Num() > 0) {
+					prevVert = nextVert;
+					nextVert = getBestFaceCandidate(nextVert, candidates, prevEdge, graph);
+				}
+				else {
+					forceStop = true;
+				}
+
+				// found initial vertex = face found
+				if (nextVert == v) {
+					foundV = true;
+				}
+
+				visit.Add(nextVert);
+			}
+
+			bool ccw = isCCW(visit, graph);
+
+			if (foundV && ccw) {
+				FString faceString = convertFaceToString(visit);
+				if (!foundFaces.Contains(faceString)) {
+					faces.Add(visit);
+					foundFaces.Add(faceString);
+				}
+			}
+
+		}
+
+		finishedVerts.Add(v);
+
+	}
+
+	return faces;
 }
 
 namespace blocksMath {
@@ -344,7 +377,7 @@ void ACityBlocksMaker::DFSCycles(std::shared_ptr<gte::MinimalCycleBasis<double>:
 TArray<TArray<int>> ACityBlocksMaker::MinimumCycleBasis(std::vector<Intersection*> intersections, std::vector<Segment*> segments)
 {
 	in11 = intersections;
-	UE_LOG(LogTemp, Warning, TEXT("Number of intersectoins: %d"), in11.size());
+	UE_LOG(LogTemp, Warning, TEXT("Number of intersections: %d"), in11.size());
 	std::vector<std::array<double, 2>> positions{};
 	for (auto intersection : intersections) {
 		Point p = intersection->position;
@@ -360,6 +393,8 @@ TArray<TArray<int>> ACityBlocksMaker::MinimumCycleBasis(std::vector<Intersection
 	std::vector<std::shared_ptr<gte::MinimalCycleBasis<double>::Tree>> forest;
 	gte::MinimalCycleBasis<double> mcb(positions, edges, forest);
 
+	UE_LOG(LogTemp, Warning, TEXT("MinimalCycleBasis was performed !"));
+	/*
 	int numCycles = 0;
 
 	DFSCycles(forest[0], numCycles);
@@ -381,7 +416,7 @@ TArray<TArray<int>> ACityBlocksMaker::MinimumCycleBasis(std::vector<Intersection
 			std::cout << std::endl;
 		}
 	}
-
+	*/
 	return TArray<TArray<int>>();
 }
 

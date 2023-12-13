@@ -34,8 +34,10 @@ public:
 	}
 	// adds edges in both directions
 	bool AddEdge(const int id1, const int id2) {
-		if (id1 == id2 || vertices.find(id1) == vertices.end() || vertices.find(id2) == vertices.end())
+		if (id1 == id2 || vertices.find(id1) == vertices.end() || vertices.find(id2) == vertices.end()) {
+			UE_LOG(LogTemp, Error, TEXT("ERROR ADDING EDGE"));
 			return false;
+		}
 
 		vertices[id1]->adj.insert(id2);
 		vertices[id2]->adj.insert(id1);

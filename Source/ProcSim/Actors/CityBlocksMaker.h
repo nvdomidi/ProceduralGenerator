@@ -28,6 +28,9 @@ public:
 	/* Make cycles from the graph created */
 	TArray<TArray<int>> MakeCycles(Graph<Intersection*> graph);
 
+	/* Find faces from the graph created */
+	TArray<TArray<int>> FindFaces(Graph<Intersection*> graph);
+
 	/* Remove the outer cycles */
 	TArray<TArray<int>> RemoveOuterCycles(TArray<TArray<int>> cycles, Graph<Intersection*> graph);
 

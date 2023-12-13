@@ -104,10 +104,32 @@ void ARoadGenerator::VisualizeSegmentLinks() {
 	}
 }
 
+// Iterate over segments, find close ones in qTree and check if there is intersection (there shouldn't be)
+void ARoadGenerator::PrintConflictingSegments()
+{
+	int num = 0;
+	for (auto segment : segments) {
+		for (auto other : qTree->retrieve(segment->limits())) {
+			auto in = other->intersectWith(segment);
+			if (in != nullptr) {
+				UE_LOG(LogTemp, Warning, TEXT("CONFLICT: segment: start(%f,%f) end(%f,%f) other: start(%f,%f) end(%f,%f)"),
+					segment->start.x, segment->start.y, segment->end.x, segment->end.y,
+					other->start.x, other->start.y, other->end.x, other->end.y)
+					num++;
+			}
+		}
+	}
+	UE_LOG(LogTemp, Warning, TEXT("Num mistakes: %d"), num / 2);
+	UE_LOG(LogTemp, Warning, TEXT("Hey is this functions getting claled?"));
+}
+
 
 // Main algorithm for creating the 3D roads
-bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness, int numSegments)
+bool ARoadGenerator::CreateRoads(FVector regionStart, FVector regionEnd, ESTRAIGHTNESS straightness, int numSegments)
 {
+	regionStartPoint = regionStart;
+	regionEndPoint = regionEnd;
+
 	if (this->heatmap == nullptr)
 		return false;
 	
@@ -123,75 +145,29 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 	Config::SEGMENT_COUNT_LIMIT = numSegments;
 
 	/* generation algorithm starts here*/
-	PriorityQueue<Segment*> priorityQ([](const Segment* s) { return s->t; });
-	DebugData debugData;
+	priorityQ = new PriorityQueue<Segment*>([](const Segment* s) { return s->t; });
 	std::vector<Segment*> initialSegments = makeInitialSegments();
 
 	for (auto initialSegment : initialSegments) {
-		priorityQ.enqueue(initialSegment);
+		priorityQ->enqueue(initialSegment);
 	}
 
-	Quadtree<Segment*> qTree(*(new Bounds{ Config::minx,
+	qTree = new Quadtree<Segment*>(*(new Bounds{ Config::minx,
 			Config::miny,
 			Config::maxx - Config::minx,
 			Config::maxy - Config::miny }), Config::QUADTREE_MAX_OBJECTS, Config::QUADTREE_MAX_LEVELS);
 
-	while (!priorityQ.empty() && segments.size() < Config::SEGMENT_COUNT_LIMIT) {
-		generationStep(priorityQ, segments, qTree, debugData, intersections, *(this->heatmap));
+	while (!priorityQ->empty() && segments.size() < Config::SEGMENT_COUNT_LIMIT) {
+		generationStep(*priorityQ, segments, *qTree, debugData, intersections, *(this->heatmap));
 	}
 	/* generation algorithm ends here*/
 
 	UE_LOG(LogTemp, Warning, TEXT("Number of segments created: %d"), segments.size());
-	UE_LOG(LogTemp, Warning, TEXT("Number of intersections: %d, intersectionsradius: %d, snaps: %d"),
-		debugData.intersections.size(), debugData.intersectionsRadius.size(), debugData.snaps.size());
-
 
 	// remove conflicting segments
-	std::vector<Segment*> to_erase;
-
-	for (auto it = segments.begin(); it != segments.end(); ++it) {
-		Segment* segment = *it;
-		for (auto other : qTree.retrieve(segment->limits())) {
-			if (segment == other) continue;  // Ensure the segment doesn't intersect with itself
-
-			auto in = segment->intersectWith(other);
-			if (in != nullptr) {
-				to_erase.push_back(segment);
-				to_erase.push_back(other);
-			}
-		}
-	}
-
-	// Sort the to_erase vector and remove duplicates for efficient erasure
-	std::sort(to_erase.begin(), to_erase.end());
-	to_erase.erase(std::unique(to_erase.begin(), to_erase.end()), to_erase.end());
-
-	for (auto segment : to_erase) {
-		auto it = std::find(segments.begin(), segments.end(), segment);
-		if (it != segments.end()) {
-			segments.erase(it);
-		}
-	}
-
-	////////////////
-	int num1 = 0;
-	for (auto segment : segments) {
-		for (auto other : qTree.retrieve(segment->limits())) {
-			auto in = other->intersectWith(segment);
-			if (in != nullptr) {
-				UE_LOG(LogTemp, Warning, TEXT("segment: start(%f,%f) end(%f,%f) other: start(%f,%f) end(%f,%f)"),
-					segment->start.x, segment->start.y, segment->end.x, segment->end.y,
-					other->start.x, other->start.y, other->end.x, other->end.y)
-					num1++;
-			}
-		}
-	}
-	UE_LOG(LogTemp, Warning, TEXT("Num mistakes11: %d"), num1 / 2);
-
-
-	//this->RemoveOutsideOfRegion(FVector{Config::minx, Config::miny, regionStartPoint.Z}, FVector{Config::maxx, Config::maxy, regionEndPoint.Z});
-
-
+	removeConflictingSegments(segments, *qTree);
+	// check if properly removed
+	PrintConflictingSegments();
 
 	populateSegmentLinks(segments);
 	/* find intersections here */
@@ -199,53 +175,21 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 
 	UE_LOG(LogTemp, Warning, TEXT("intersections size: %d"), intersections.size());
 
+	return true;
+}
+
+void ARoadGenerator::ShowRoads()
+{
 	FVector midPoint = (regionStartPoint + regionEndPoint) / 2;
-
-
-	for (auto segment : segments) {
-		for (auto other : qTree.retrieve(segment->limits())) {
-			auto in = other->intersectWith(segment);
-			if (in != nullptr) {
-					float xx = in->x * 100 + midPoint.X;
-					float yy = in->y * 100 + midPoint.Y;
-					GetWorld()->SpawnActor<AActor>(CheckBlueprint, FVector{ xx,yy,70.0f }, FRotator{}, FActorSpawnParameters{});
-					UE_LOG(LogTemp, Warning, TEXT("testcheck blueprint spawned"));
-			}
-		}
-	}
-
-	//regenerateIntersections(qTree, segments, intersections);
 
 	this->TransformToUECoordinates(midPoint);
 
-	// TEST: Comment out visualize segment links
-	//VisualizeSegmentLinks();
-
 	// TEST: put this above the before
-	this->RemoveOutsideOfRegion(regionStartPoint, regionEndPoint);
-
-
-	// intersections might be spawned with equal positions
-	//removeDuplicateIntersections(intersections);
-	
-
-
-	// merge intersections close to eachother
-	//mergeCloseIntersections(intersections);
-
-	
-
-	// cut the roads leading into the intersection
-	//cutRoadsLeadingIntoIntersections(segments, intersections);
-
-	// make procuderal intersections for twoway, threeway and fourway
+	this->RemoveOutsideOfRegion();
 
 	/* fix ordering of roads in Z value*/
-	
-	
-	findOrderOfRoads(segments);
 
-	/* adding something to  visualize backwards and forwards links */
+	findOrderOfRoads(segments);
 
 
 	/* generate intersections procedural mesh */
@@ -258,23 +202,23 @@ bool ARoadGenerator::CreateRoads(FVector regionStartPoint, FVector regionEndPoin
 	/* use this to visualize the intersections*/
 	CreateIntersections(midPoint);
 
-	//GenerateMeshIntersections(this->ProceduralMeshMaker);
+	// show cycle centers
+	for (auto face : this->faces) {
+		Point centerPos{};
 
-	int num = 0;
-	for (auto segment : segments) {
-		for (auto other : qTree.retrieve(segment->limits())) {
-			auto in = other->intersectWith(segment);
-			if (in != nullptr) {
-					UE_LOG(LogTemp, Warning, TEXT("segment: start(%f,%f) end(%f,%f) other: start(%f,%f) end(%f,%f)"),
-						segment->start.x, segment->start.y, segment->end.x, segment->end.y,
-						other->start.x, other->start.y, other->end.x, other->end.y)
-					num++;
-			}
+		for (int v : face) {
+			centerPos = centerPos + graph.vertices[v]->data->position;
 		}
-	}
-	UE_LOG(LogTemp, Warning, TEXT("Num mistakes: %d"), num/2);
 
-	return true;
+		centerPos = centerPos / face.Num();
+		FVector centerPosVec = FVector{ static_cast<float>(centerPos.x), static_cast<float>(centerPos.y), 70.0f };
+		GetWorld()->SpawnActor<AActor>(this->IntersectionBlueprint, centerPosVec, FRotator{}, FActorSpawnParameters{});
+	}
+
+
+
+	UE_LOG(LogTemp, Warning, TEXT("Conflicting segments AFTER transforming to UE Coordinates: "));
+	PrintConflictingSegments();
 }
 
 namespace roadMath {
@@ -315,7 +259,7 @@ namespace roadMath {
 bool ARoadGenerator::CreateBlocks()
 {
 	this->CityBlocksMaker = Cast<ACityBlocksMaker>(GetWorld()->SpawnActor<ACityBlocksMaker>(FActorSpawnParameters{}));
-	auto graph = this->CityBlocksMaker->MakeGraph(this->intersections, this->segments);
+	graph = this->CityBlocksMaker->MakeGraph(this->intersections, this->segments);
 	
 	int vertices = graph.vertices.size();
 
@@ -325,51 +269,33 @@ bool ARoadGenerator::CreateBlocks()
 	UE_LOG(LogTemp, Warning, TEXT("EULERS FORMULA: FACES = 2 - Vertices(%d) + Edges(%d) = %d"), vertices, edges, 2 - vertices + edges);
 	UE_LOG(LogTemp, Warning, TEXT("Num intersections: %d"), intersections.size());
 
-	this->CityBlocksMaker->MinimumCycleBasis(intersections, segments);
+	this->faces = this->CityBlocksMaker->FindFaces(graph);
 
+	int numFaces = 0;
+
+	for (auto face : this->faces) {
+
+		numFaces++;
+
+		FString toPrint = FString::Printf(TEXT("Face_%d: "), numFaces);
+		for (int v : face) {
+			toPrint += (FString::FromInt(v) + ",");
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *toPrint);
+
+
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("numFaces: %d"), numFaces);
+
+
+	/*
+	this->CityBlocksMaker->MinimumCycleBasis(intersections, segments);
+	
 	for (auto pos : this->CityBlocksMaker->cyclepositions) {
 		GetWorld()->SpawnActor<AActor>(this->IntersectionBlueprint, pos, FRotator{}, FActorSpawnParameters{});
 	}
-
-	
-	/*TArray<TArray<int>> cycles = this->CityBlocksMaker->MakeCycles(graph);
-
-	UE_LOG(LogTemp, Warning, TEXT("num cycles: %d"), cycles.Num());
-
-	auto logcycle = [](const TArray<int>& cycle) {
-		FString result = "{ ";
-		for (int i = 0; i < cycle.Num(); i++) {
-			result += FString::Printf(TEXT("%d"), cycle[i]);
-			if (i != cycle.Num() - 1) {
-				result += ", ";
-			}
-		}
-		result += " }";
-		return result;
-	};
-
-	for (auto cycle : cycles) {
-		UE_LOG(LogTemp, Warning, TEXT("Cycle: %s"), *(logcycle(cycle)));
-	}
-	
-	UE_LOG(LogTemp, Warning, TEXT("Number of cycles before removing: %d"), cycles.Num());
-
-	cycles = this->CityBlocksMaker->RemoveOuterCycles(cycles, graph);
-
-
-	UE_LOG(LogTemp, Warning, TEXT("Number of cycles after removing: %d"), cycles.Num());*/
-
-	// only keep convex cycles
-	//TArray<TArray<int>> convexCycles{};
-
-	//for (TArray<int> cycle : cycles) {
-	//	TArray<Point> positions{};
-	//	for (int i : cycle) {
-	//		positions.Add(graph.vertices[i]->data->position);
-	//	}
-	//	if (roadMath::isConvex(positions) || true)
-	//		convexCycles.Add(cycle);
-	//}
 
 	// spawning something at the mid position
 
@@ -390,7 +316,7 @@ bool ARoadGenerator::CreateBlocks()
 		//textcycle->SetText(cyclestring);
 	}
 
-
+	*/
 
 	return true;
 }
@@ -418,7 +344,7 @@ void ARoadGenerator::TransformToUECoordinates(FVector midPoint)
 }
 
 /* Remove segments and intersections outside of the region */
-void ARoadGenerator::RemoveOutsideOfRegion(FVector regionStartPoint, FVector regionEndPoint)
+void ARoadGenerator::RemoveOutsideOfRegion()
 {
 	// find the min and max points
 	float minx, maxx, miny, maxy;
@@ -566,7 +492,7 @@ void ARoadGenerator::CreateIntersections(FVector midPoint)
 		
 		// intersection blueprint
 		
-		/*if (intersection->branches.size() >= 1) {
+		if (intersection->branches.size() >= 1) {
 			float height{};
 			int maxOrder{ -999999 };
 			for (auto branch : intersection->branches) {
@@ -586,7 +512,7 @@ void ARoadGenerator::CreateIntersections(FVector midPoint)
 			auto textrender = Cast<UTextRenderComponent>(inter->GetComponentByClass(UTextRenderComponent::StaticClass()));
 			
 			textrender->SetText(FString::Printf(TEXT("%d"), intersection->ID));
-		}*/
+		}
 	}
 
 }

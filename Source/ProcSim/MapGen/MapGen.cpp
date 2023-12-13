@@ -307,6 +307,36 @@ void generationStep(
 	}
 }
 
+// If there are segments intersecting they should be removed
+void removeConflictingSegments(std::vector<Segment*>& segments, Quadtree<Segment*> qTree)
+{
+	std::vector<Segment*> to_erase;
+
+	for (auto it = segments.begin(); it != segments.end(); ++it) {
+		Segment* segment = *it;
+		for (auto other : qTree.retrieve(segment->limits())) {
+			if (segment == other) continue;  // Ensure the segment doesn't intersect with itself
+
+			auto in = segment->intersectWith(other);
+			if (in != nullptr) {
+				to_erase.push_back(segment);
+				to_erase.push_back(other);
+			}
+		}
+	}
+
+	// Sort the to_erase vector and remove duplicates for efficient erasure
+	std::sort(to_erase.begin(), to_erase.end());
+	to_erase.erase(std::unique(to_erase.begin(), to_erase.end()), to_erase.end());
+
+	for (auto segment : to_erase) {
+		auto it = std::find(segments.begin(), segments.end(), segment);
+		if (it != segments.end()) {
+			segments.erase(it);
+		}
+	}
+}
+
 void findOrderAtEnd(Segment* segment, bool isStart)
 {
 	std::vector<Segment*> links = (isStart ? segment->links_b : segment->links_f);

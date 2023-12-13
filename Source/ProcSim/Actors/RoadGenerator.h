@@ -34,7 +34,11 @@ public:
 
 	/* Create Roads after heatmap is created */
 	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
-	bool CreateRoads(FVector regionStartPoint, FVector regionEndPoint, ESTRAIGHTNESS straightness, int numSegments);
+	bool CreateRoads(FVector regionStart, FVector regionEnd, ESTRAIGHTNESS straightness, int numSegments);
+
+	/* Show Roads after everything is done */
+	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
+	void ShowRoads();
 
 	/* Divide City into Blocks */
 	UFUNCTION(BlueprintCallable, Category = "RoadGenerator")
@@ -52,7 +56,7 @@ public:
 	void TransformToUECoordinates(FVector midPoint);
 
 	/* Remove segments and intersections outside of the region */
-	void RemoveOutsideOfRegion(FVector regionStartPoint, FVector regionEndPoint);
+	void RemoveOutsideOfRegion();
 
 	/* Spawn something on intersections*/
 	void CreateIntersections(FVector midPoint);
@@ -67,6 +71,9 @@ public:
 	void GenerateMeshIntersections(AProceduralMeshMaker* ProcMeshMaker);
 
 	void VisualizeSegmentLinks();
+
+	/* This function is used to print whether there are segments intersecting with eachother (there shouldnt be)*/
+	void PrintConflictingSegments();
 
 	//UPROPERTY(EditAnywhere, Category = "RoadGenerator")
 	TSubclassOf<AActor> RoadBlueprint;
@@ -85,11 +92,17 @@ public:
 	UPROPERTY()
 	TArray<uint8> pixels;
 
+	FVector regionStartPoint, regionEndPoint;
 	Heatmap* heatmap = nullptr;
+	PriorityQueue<Segment*>* priorityQ = nullptr;
+	DebugData debugData;
+	Quadtree<Segment*>* qTree = nullptr;
 	std::vector<Segment*> segments;
 	std::vector<Intersection*> intersections;
 	AProceduralMeshMaker* ProceduralMeshMaker = nullptr;
 	ACityBlocksMaker* CityBlocksMaker = nullptr;
+	Graph<Intersection*> graph;
+	TArray<TArray<int>> faces;
 
 	// Sets default values for this actor's properties
 	ARoadGenerator();

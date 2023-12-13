@@ -409,6 +409,7 @@ void generationStep(
 	Heatmap heatmap
 );
 
+void removeConflictingSegments(std::vector<Segment*>& segments, Quadtree<Segment*> qTree);
 void findOrderAtEnd(Segment* segment, bool isStart);
 void findOrderOfRoads(std::vector<Segment*>& segments);
 void removeDuplicateIntersections(std::vector<Intersection*>& intersections);
