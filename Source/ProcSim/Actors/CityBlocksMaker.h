@@ -20,6 +20,8 @@ public:
 	// Sets default values for this actor's properties
 	ACityBlocksMaker();
 
+	virtual void BeginPlay() override;
+
 	UProceduralMeshComponent* ProceduralMesh;
 
 	/* Turns intersections and segments into graph */
@@ -39,6 +41,14 @@ public:
 
 	/* Minimum Cycle Basis Extraction from the graph */
 	TArray<TArray<int>> MinimumCycleBasis(std::vector<Intersection*> intersections, std::vector<Segment*> segments);
+
+	/* Parcel the found faces into smaller blocks */
+	void ParcelBlocks(TArray<TArray<int>> faces, Graph<Intersection*> graph);
+
+
+	int getMostCCW(int v, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph);
+	bool isCCW(TArray<int> face, Graph<Intersection*> graph);
+	int getBestFaceCandidate(int nextVert, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph);
 
 	std::vector<Intersection*> in11;
 	TArray<FVector> cyclepositions{};

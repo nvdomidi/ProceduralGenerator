@@ -315,7 +315,6 @@ bool ARoadGenerator::CreateBlocks()
 		//auto textcycle = Cast<UTextRenderComponent>(cyclebp->GetComponentByClass(UTextRenderComponent::StaticClass()));
 		//textcycle->SetText(cyclestring);
 	}
-
 	*/
 
 	return true;

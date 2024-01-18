@@ -3,6 +3,8 @@
 
 #include "ProcSim/Actors/CityBlocksMaker.h"
 #include "ProcSim/MapGen/Config.h"
+
+#include "ProcSim/BlocksGen/Parcel.h"
 #include "ProceduralMeshComponent.h"
 
 #include <algorithm>
@@ -16,6 +18,48 @@ ACityBlocksMaker::ACityBlocksMaker()
 {
 	//ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(FName("Proceduralmesh"));
 	//RootComponent = ProceduralMesh;
+}
+
+void ACityBlocksMaker::BeginPlay()
+{
+	Intersection* i1 = new Intersection(std::vector<Segment*>{}, Point{ 0.0,1.0 });
+	Intersection* i2 = new Intersection(std::vector<Segment*>{}, Point{ 1.0,0.0 });
+	Intersection* i3 = new Intersection(std::vector<Segment*>{}, Point{ 2.0,2.0 });
+	//Intersection* i4 = new Intersection(std::vector<Segment*>{}, Point{ 3.0,1.0 });
+
+	FVector p1{ float(i1->position.x), float(i1->position.y), 0.0 };
+	FVector p2{ float(i2->position.x), float(i2->position.y), 0.0 };
+	FVector p3{ float(i3->position.x), float(i3->position.y), 0.0 };
+	//FVector p4{ float(i4->position.x), float(i4->position.y), 0.0 };
+
+	
+	OrientedBoundingBox2D obb;
+	obb.getMinimumFromFace(TArray<FVector>{p1, p2, p3});
+
+	float angle = FMath::RadiansToDegrees(obb.rot_angle);
+	
+
+	UE_LOG(LogTemp, Warning, TEXT("OBB.pos: {%f, %f}"), obb.pos.X, obb.pos.Y);
+	UE_LOG(LogTemp, Warning, TEXT("OBB.extents: {%f, %f}"), obb.extents.X, obb.extents.Y);
+	UE_LOG(LogTemp, Warning, TEXT("OBB.rot_angle: {%f}"), angle);
+	UE_LOG(LogTemp, Warning, TEXT("OBB.long_axis: {%f, %f}"), obb.long_axis.X, obb.long_axis.Y);
+	UE_LOG(LogTemp, Warning, TEXT("OBB.short_axis: {%f, %f}"), obb.short_axis.X, obb.short_axis.Y);
+	
+
+	/*
+	BoundingBox2D bb{0.0,0.0,0.0,0.0};
+	bb.fromFVectorList(TArray<FVector>{p1, p2, p3, p4});
+
+	float a = bb.getArea();
+	FVector2D center = bb.getCenter();
+	FVector2D size = bb.getSize();
+	
+
+	UE_LOG(LogTemp, Warning, TEXT("BB.center: {%f, %f}"), center.X, center.Y);
+	UE_LOG(LogTemp, Warning, TEXT("BB.size: {%f, %f}"), size.X, size.Y);
+	UE_LOG(LogTemp, Warning, TEXT("BB.area: {%f}"), a);
+	*/
+	
 }
 
 
@@ -86,7 +130,8 @@ FString convertFaceToString(TArray<int> face) {
 	return res;
 }
 
-int getMostCCW(int v, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph) {
+// calculates angles and finds the most counter clockwise edge to prevEdge
+int ACityBlocksMaker::getMostCCW(int v, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph) {
 	Point v_p = graph.vertices[v]->data->position;
 	int mostCC = -1;
 	float minA = std::numeric_limits<float>::max();
@@ -104,8 +149,8 @@ int getMostCCW(int v, TArray<int> candidates, Point prevEdge, Graph<Intersection
 		nextEdge = nextEdge / nextEdge.length();
 
 		//angle represents angle we have to rotate prevedge to get to nextedge, 
-	    //represents clockwise or ccw respective to orientation
-	    //so if orientation is -1, want the most counter clockwise rotated
+		//represents clockwise or ccw respective to orientation
+		//so if orientation is -1, want the most counter clockwise rotated
 		float a = Math::angleBetween(prevEdge, nextEdge);
 
 		if (orient == -1 && maxA < a) {
@@ -115,7 +160,7 @@ int getMostCCW(int v, TArray<int> candidates, Point prevEdge, Graph<Intersection
 		else if (orient == 0) {
 			colinear = candidates[i];
 		}
-		else if (orient == 1 && minA > a) {
+		else if (orient == +1 && minA > a) {
 			leastClockwise = candidates[i];
 			minA = a;
 		}
@@ -123,15 +168,17 @@ int getMostCCW(int v, TArray<int> candidates, Point prevEdge, Graph<Intersection
 
 	if (mostCC != -1) {
 		return mostCC;
-	} else if (colinear != -1) {
+	}
+	else if (colinear != -1) {
 		return colinear;
-	} else {
+	}
+	else {
 		return leastClockwise;
 	}
 }
 
 // return true if face is in CCW order, false o.w
-bool isCCW(TArray<int> face, Graph<Intersection*> graph) {
+bool ACityBlocksMaker::isCCW(TArray<int> face, Graph<Intersection*> graph) {
 	bool ccw = false;
 	if (face.Num() > 2) {
 		float orient = 0;
@@ -148,7 +195,7 @@ bool isCCW(TArray<int> face, Graph<Intersection*> graph) {
 }
 
 // Gets the most counterclockwise candidate, if none exist return -1
-int getBestFaceCandidate(int nextVert, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph)
+int ACityBlocksMaker::getBestFaceCandidate(int nextVert, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph)
 {
 	if (candidates.Num() > 1) {
 		int mostCC = getMostCCW(nextVert, candidates, prevEdge, graph);
@@ -163,6 +210,7 @@ int getBestFaceCandidate(int nextVert, TArray<int> candidates, Point prevEdge, G
 
 }
 
+// Extracts the faces of the planar graph
 TArray<TArray<int>> ACityBlocksMaker::FindFaces(Graph<Intersection*> graph)
 {
 	TArray<TArray<int>> faces;
@@ -176,7 +224,9 @@ TArray<TArray<int>> ACityBlocksMaker::FindFaces(Graph<Intersection*> graph)
 		
 		// iterate over all neighbors
 		for (int vadj : neighbors) {
+			// keep track of visited nodes (from each neighbor node)
 			TArray<int> visit;
+			// for traversing the graph
 			int prevVert = v;
 			int nextVert = vadj;
 			visit.Add(nextVert);
@@ -418,5 +468,9 @@ TArray<TArray<int>> ACityBlocksMaker::MinimumCycleBasis(std::vector<Intersection
 	}
 	*/
 	return TArray<TArray<int>>();
+}
+
+void ACityBlocksMaker::ParcelBlocks(TArray<TArray<int>> faces, Graph<Intersection*> graph)
+{
 }
 
