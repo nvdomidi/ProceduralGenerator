@@ -43,6 +43,18 @@ public:
 		vertices[id2]->adj.insert(id1);
 		return true;
 	}
+
+	// constructs graph from the input face
+	void FromFace(const std::vector<int> ids, const std::vector<MetaData> datas) {
+		// adding the nodes
+		for (int i = 0; i < ids.size(), i++) {
+			this->AddNode(ids[i], datas[i]);
+		}
+		// adding the edges of the cycle
+		for (int i = 0; i < ids.size(), i++) {
+			this->AddEdge(ids[i], ids[(i + 1) % ids.size()]);
+		}
+	}
 };
 
 /* This function gives labels to each vertex of the graph based on their degree */

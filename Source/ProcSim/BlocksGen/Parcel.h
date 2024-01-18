@@ -180,9 +180,6 @@ public:
 			}
 
 			BoundingBox2D curBB(0, 0, 0, 0);
-			for (FVector f : rotated) {
-				UE_LOG(LogTemp, Warning, TEXT("rotated: {%f, %f, %f}"), f.X, f.Y, f.Z);
-			}
 			curBB.fromFVectorList(rotated);
 			float currArea = curBB.getArea();
 			if (currArea < minArea) {
