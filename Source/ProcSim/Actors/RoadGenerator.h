@@ -101,7 +101,7 @@ public:
 	std::vector<Intersection*> intersections;
 	AProceduralMeshMaker* ProceduralMeshMaker = nullptr;
 	ACityBlocksMaker* CityBlocksMaker = nullptr;
-	Graph<Intersection*> graph;
+	Graph<Intersection> graph;
 	TArray<TArray<int>> faces;
 
 	// Sets default values for this actor's properties

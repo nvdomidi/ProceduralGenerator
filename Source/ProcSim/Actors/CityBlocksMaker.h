@@ -23,13 +23,13 @@ public:
 	UProceduralMeshComponent* ProceduralMesh;
 
 	/* Turns intersections and segments into graph */
-	Graph<Intersection*> MakeGraph(std::vector<Intersection*> intersections, std::vector<Segment*> segments);
+	Graph<Intersection> MakeGraph(std::vector<Intersection*> intersections, std::vector<Segment*> segments);
 
 	/* Make cycles from the graph created */
 	TArray<TArray<int>> MakeCycles(Graph<Intersection*> graph);
 
 	/* Find faces from the graph created */
-	TArray<TArray<int>> FindFaces(Graph<Intersection*> graph);
+	TArray<TArray<int>> FindFaces(Graph<Intersection> graph);
 
 	/* Remove the outer cycles */
 	TArray<TArray<int>> RemoveOuterCycles(TArray<TArray<int>> cycles, Graph<Intersection*> graph);
@@ -41,12 +41,14 @@ public:
 	TArray<TArray<int>> MinimumCycleBasis(std::vector<Intersection*> intersections, std::vector<Segment*> segments);
 
 	/* Parcel the found faces into smaller blocks */
-	void ParcelBlocks(TArray<TArray<int>> faces, Graph<Intersection*> graph);
+	void ParcelBlocks(TArray<TArray<int>> faces, Graph<Intersection> graph);
 
 
+	/*
 	int getMostCCW(int v, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph);
 	bool isCCW(TArray<int> face, Graph<Intersection*> graph);
 	int getBestFaceCandidate(int nextVert, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph);
+	*/
 
 	std::vector<Intersection*> in11;
 	TArray<FVector> cyclepositions{};

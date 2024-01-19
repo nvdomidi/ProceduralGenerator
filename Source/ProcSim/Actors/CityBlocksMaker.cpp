@@ -23,7 +23,7 @@ ACityBlocksMaker::ACityBlocksMaker()
 }
 
 /* This function turns segments and intersections into a graph */
-Graph<Intersection*> ACityBlocksMaker::MakeGraph(std::vector<Intersection*> intersections, std::vector<Segment*> segments)
+Graph<Intersection> ACityBlocksMaker::MakeGraph(std::vector<Intersection*> intersections, std::vector<Segment*> segments)
 {
 	std::vector<int> intersectionIDs{};
 
@@ -36,11 +36,12 @@ Graph<Intersection*> ACityBlocksMaker::MakeGraph(std::vector<Intersection*> inte
 		}
 	}
 
-	Graph<Intersection*> graph;
+	Graph<Intersection> graph;
 	
 	// Node ID: intersection ID, Node MetaData: Intersection pointer
 	for (auto intersection : intersections) {
-		graph.AddNode(intersection->ID, intersection);
+		
+		graph.AddNode(intersection->ID, *intersection);
 	}
 
 	for (auto segment : segments) {
@@ -68,181 +69,18 @@ TArray<TArray<int>> ACityBlocksMaker::MakeCycles(Graph<Intersection*> graph)
 	return Cycles;
 }
 
-FString convertFaceToString(TArray<int> face) {
-	FString res = "";
-	int minId = std::numeric_limits<int>::max();
-	int minIdInd = 0;
-
-	//start traversing the face at the minimum id, since same faces may have different starting indices
-	for (int i = 0; i < face.Num(); i++) {
-		if (face[i] < minId) {
-			minId = face[i];
-			minIdInd = i;
-		}
-	}
-
-	for (int i = minIdInd; i < minIdInd + face.Num(); i++) {
-		int toAdd = face[i % face.Num()];
-		res += (FString::FromInt(toAdd) + ",");
-	}
-
-	return res;
-}
-
-// calculates angles and finds the most counter clockwise edge to prevEdge
-int ACityBlocksMaker::getMostCCW(int v, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph) {
-	Point v_p = graph.vertices[v]->data->position;
-	int mostCC = -1;
-	float minA = std::numeric_limits<float>::max();
-
-	int colinear = -1;
-
-	int leastClockwise = -1;
-	float maxA = -std::numeric_limits<float>::max();
-
-	for (int i = 0; i < candidates.Num(); i++) {
-		Point v_cand = graph.vertices[candidates[i]]->data->position;
-		Point nextEdge = v_cand - v_p;
-		int orient = FMath::Sign(Math::crossProduct(prevEdge, nextEdge));
-		prevEdge = prevEdge / prevEdge.length();
-		nextEdge = nextEdge / nextEdge.length();
-
-		//angle represents angle we have to rotate prevedge to get to nextedge, 
-		//represents clockwise or ccw respective to orientation
-		//so if orientation is -1, want the most counter clockwise rotated
-		float a = Math::angleBetween(prevEdge, nextEdge);
-
-		if (orient == -1 && maxA < a) {
-			mostCC = candidates[i];
-			maxA = a;
-		}
-		else if (orient == 0) {
-			colinear = candidates[i];
-		}
-		else if (orient == +1 && minA > a) {
-			leastClockwise = candidates[i];
-			minA = a;
-		}
-	}
-
-	if (mostCC != -1) {
-		return mostCC;
-	}
-	else if (colinear != -1) {
-		return colinear;
-	}
-	else {
-		return leastClockwise;
-	}
-}
-
-// return true if face is in CCW order, false o.w
-bool ACityBlocksMaker::isCCW(TArray<int> face, Graph<Intersection*> graph) {
-	bool ccw = false;
-	if (face.Num() > 2) {
-		float orient = 0;
-		for (int i = 0; i < face.Num(); i++) {
-			Point p1 = graph.vertices[face[i]]->data->position;
-			Point p2 = graph.vertices[face[(i+1)%face.Num()]]->data->position;
-			orient += (p2.x - p1.x) * (p2.y + p1.y);
-		}
-		if (orient > 0)
-			ccw = true;
-	}
-
-	return ccw;
-}
-
-// Gets the most counterclockwise candidate, if none exist return -1
-int ACityBlocksMaker::getBestFaceCandidate(int nextVert, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph)
+TArray<TArray<int>> ACityBlocksMaker::FindFaces(Graph<Intersection> graph)
 {
-	if (candidates.Num() > 1) {
-		int mostCC = getMostCCW(nextVert, candidates, prevEdge, graph);
-		return mostCC;
-	}
-	else if (candidates.Num() == 1) {
-		return candidates[0];
-	}
-	else {
-		return -1;
-	}
+	TArray<TArray<int>> faces{};
+	graph.FindFaces();
+	std::vector<std::vector<int>> fs = graph.faces;
 
-}
-
-// Extracts the faces of the planar graph
-TArray<TArray<int>> ACityBlocksMaker::FindFaces(Graph<Intersection*> graph)
-{
-	TArray<TArray<int>> faces;
-	TSet<int> finishedVerts;
-	TSet<FString> foundFaces;
-
-	// iterate over each vertex
-	for (auto vert : graph.vertices) {
-		int v = vert.first;
-		auto neighbors = vert.second->adj;
-		
-		// iterate over all neighbors
-		for (int vadj : neighbors) {
-			// keep track of visited nodes (from each neighbor node)
-			TArray<int> visit;
-			// for traversing the graph
-			int prevVert = v;
-			int nextVert = vadj;
-			visit.Add(nextVert);
-
-			bool foundV = false;
-			bool forceStop = false;
-
-			while (!foundV && visit.Num() < 50 && !forceStop) {
-
-				// stop if finished vertex is visited
-				if (finishedVerts.Contains(nextVert))
-					forceStop = true;
-
-				Point v_p = graph.vertices[prevVert]->data->position;
-				Point vadj_p = graph.vertices[nextVert]->data->position;
-				Point prevEdge = vadj_p - v_p;
-
-				TArray<int> candidates{};
-
-				// each neighbor of neighbor is a potential candidate
-				for (int cand : graph.vertices[nextVert]->adj) {
-					if (cand != prevVert) {
-						candidates.Add(cand);
-					}
-				}
-
-				// go to next vertex (next BEST vertex)
-				if (candidates.Num() > 0) {
-					prevVert = nextVert;
-					nextVert = getBestFaceCandidate(nextVert, candidates, prevEdge, graph);
-				}
-				else {
-					forceStop = true;
-				}
-
-				// found initial vertex = face found
-				if (nextVert == v) {
-					foundV = true;
-				}
-
-				visit.Add(nextVert);
-			}
-
-			bool ccw = isCCW(visit, graph);
-
-			if (foundV && ccw) {
-				FString faceString = convertFaceToString(visit);
-				if (!foundFaces.Contains(faceString)) {
-					faces.Add(visit);
-					foundFaces.Add(faceString);
-				}
-			}
-
+	for (auto f : fs) {
+		TArray<int> face{};
+		for (auto node : f) {
+			face.Add(node);
 		}
-
-		finishedVerts.Add(v);
-
+		faces.Add(face);
 	}
 
 	return faces;
@@ -429,7 +267,7 @@ TArray<TArray<int>> ACityBlocksMaker::MinimumCycleBasis(std::vector<Intersection
 	return TArray<TArray<int>>();
 }
 
-void ACityBlocksMaker::ParcelBlocks(TArray<TArray<int>> faces, Graph<Intersection*> graph)
+void ACityBlocksMaker::ParcelBlocks(TArray<TArray<int>> faces, Graph<Intersection> graph)
 {
 }
 

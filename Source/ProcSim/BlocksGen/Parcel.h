@@ -687,7 +687,111 @@ public:
 		for (int i = 0; i < this->parcels.size(); i++) {
 			Parcel p = this->parcels[i];
 			p.splitInset(inset);
-			//.................
+			p.graph->FindFaces();
+			for (int j = 0; j < p.graph->faces.size(); j++) {
+
+				std::vector<GraphVertex> next_parc_verts{};
+
+				for (auto node : p.graph->faces[j]) {
+					next_parc_verts.push_back(p.graph->vertices[node]->data);
+				}
+
+				Parcel next_parc(next_parc_verts);
+				next_parc.flag = p.flag;
+				next_parcels.push_back(next_parc);
+			}
+		}
+
+		this->parcels = next_parcels;
+
+		for (int i = 0; i < this->parcels.size(); i++) {
+			this->parcels[i].hasStreetAccess(original_face);
+		}
+	}
+
+	void scaleParcel(Point scale) {
+		std::vector<GraphVertex> original_face = this->parcels[0].face;
+
+		std::vector<Parcel> next_parcels{};
+
+		for (int i = 0; i < this->parcels.size(); i++) {
+			Parcel p = this->parcels[i];
+			p.splitScale(scale);
+			p.graph->FindFaces();
+			for (int j = 0; j < p.graph->faces.size(); j++) {
+				
+				std::vector<GraphVertex> next_parc_verts{};
+				for (auto node : p.graph->faces[j]) {
+					next_parc_verts.push_back(p.graph->vertices[node]->data);
+				}
+				
+				Parcel next_parc(next_parc_verts);
+				next_parc.flag = p.flag;
+				next_parcels.push_back(next_parc);
+			}
+		}
+
+		this->parcels = next_parcels;
+
+		for (int i = 0; i < this->parcels.size(); i++) {
+			this->parcels[i].hasStreetAccess(original_face);
+		}
+	}
+
+	void subdivideParcels(float minArea = 0.14, float w_min = -0.2, float w_max = 0.2, bool sym = false, int iterations = 6) {
+		std::vector<GraphVertex> original_face = this->parcels[0].face;
+
+		int n = 0;
+		bool below_area = false;
+		while (n < iterations) {
+			n++;
+			std::vector<Parcel> next_parcels;
+			for (int i = 0; i < this->parcels.size(); i++) {
+				Parcel p = this->parcels[i];
+
+				// if larger than area limit, split again, otherwise keep
+				if (p.obb.getArea() > minArea && !p.flag) {
+					
+					std::random_device rd;
+					std::mt19937 gen(rd());
+
+					std::uniform_real_distribution<float> dis(w_min, w_max);
+					float w = dis(gen);
+
+					if (sym) {
+						p.splitOBBSym(w);
+					}
+					else {
+						p.splitOBB(w);
+					}
+					
+					p.graph->FindFaces();
+					for (int j = 0; j < p.graph->faces.size(); j++) {
+
+						std::vector<GraphVertex> next_parc_verts{};
+						for (auto node : p.graph->faces[j]) {
+							next_parc_verts.push_back(p.graph->vertices[node]->data);
+						}
+
+						Parcel next_parc(next_parc_verts);
+						next_parc.flag = p.flag;
+						next_parcels.push_back(next_parc);
+
+					}
+				}
+				else {
+					below_area = true;
+					if (!p.flag) {
+						next_parcels.push_back(p);
+					}
+				}
+			}
+
+			this->parcels = next_parcels;
+		}
+
+		for (int i = 0; i < this->parcels.size(); i++) {
+			this->parcels[i].hasStreetAccess(original_face);
 		}
 	}
 

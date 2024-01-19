@@ -207,7 +207,7 @@ void ARoadGenerator::ShowRoads()
 		Point centerPos{};
 
 		for (int v : face) {
-			centerPos = centerPos + graph.vertices[v]->data->position;
+			centerPos = centerPos + graph.vertices[v]->data.position;
 		}
 
 		centerPos = centerPos / face.Num();
