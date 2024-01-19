@@ -42,6 +42,10 @@ public:
         return sqrt(pow(x, 2) + pow(y, 2));
     }
 
+    double dot(const Point& other) {
+        return x * other.x + y * other.y;
+    }
+
 
     double x;
     double y;
@@ -57,6 +61,21 @@ namespace std {
             return h1 ^ (h2 << 1);
         }
     };
+}
+
+// Function to check if three points are collinear
+inline bool areCollinear(Point p1, Point p2, Point p3) {
+    int area = p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y);
+    return area == 0;
+}
+
+// Function to check if four points are collinear
+inline bool areFourPointsCollinear(Point p1, Point p2, Point p3, Point p4) {
+    // Check for every combination of three points
+    return areCollinear(p1, p2, p3) &&
+        areCollinear(p1, p2, p4) &&
+        areCollinear(p1, p3, p4) &&
+        areCollinear(p2, p3, p4);
 }
 
 

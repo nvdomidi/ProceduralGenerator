@@ -3,8 +3,10 @@
 
 #include "ProcSim/Actors/CityBlocksMaker.h"
 #include "ProcSim/MapGen/Config.h"
+#include "ProcSim/MapGen/Math.h"
 
 #include "ProcSim/BlocksGen/Parcel.h"
+
 #include "ProceduralMeshComponent.h"
 
 #include <algorithm>
@@ -19,49 +21,6 @@ ACityBlocksMaker::ACityBlocksMaker()
 	//ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(FName("Proceduralmesh"));
 	//RootComponent = ProceduralMesh;
 }
-
-void ACityBlocksMaker::BeginPlay()
-{
-	Intersection* i1 = new Intersection(std::vector<Segment*>{}, Point{ 0.0,1.0 });
-	Intersection* i2 = new Intersection(std::vector<Segment*>{}, Point{ 1.0,0.0 });
-	Intersection* i3 = new Intersection(std::vector<Segment*>{}, Point{ 2.0,2.0 });
-	//Intersection* i4 = new Intersection(std::vector<Segment*>{}, Point{ 3.0,1.0 });
-
-	FVector p1{ float(i1->position.x), float(i1->position.y), 0.0 };
-	FVector p2{ float(i2->position.x), float(i2->position.y), 0.0 };
-	FVector p3{ float(i3->position.x), float(i3->position.y), 0.0 };
-	//FVector p4{ float(i4->position.x), float(i4->position.y), 0.0 };
-
-	
-	OrientedBoundingBox2D obb;
-	obb.getMinimumFromFace(TArray<FVector>{p1, p2, p3});
-
-	float angle = FMath::RadiansToDegrees(obb.rot_angle);
-	
-
-	UE_LOG(LogTemp, Warning, TEXT("OBB.pos: {%f, %f}"), obb.pos.X, obb.pos.Y);
-	UE_LOG(LogTemp, Warning, TEXT("OBB.extents: {%f, %f}"), obb.extents.X, obb.extents.Y);
-	UE_LOG(LogTemp, Warning, TEXT("OBB.rot_angle: {%f}"), angle);
-	UE_LOG(LogTemp, Warning, TEXT("OBB.long_axis: {%f, %f}"), obb.long_axis.X, obb.long_axis.Y);
-	UE_LOG(LogTemp, Warning, TEXT("OBB.short_axis: {%f, %f}"), obb.short_axis.X, obb.short_axis.Y);
-	
-
-	/*
-	BoundingBox2D bb{0.0,0.0,0.0,0.0};
-	bb.fromFVectorList(TArray<FVector>{p1, p2, p3, p4});
-
-	float a = bb.getArea();
-	FVector2D center = bb.getCenter();
-	FVector2D size = bb.getSize();
-	
-
-	UE_LOG(LogTemp, Warning, TEXT("BB.center: {%f, %f}"), center.X, center.Y);
-	UE_LOG(LogTemp, Warning, TEXT("BB.size: {%f, %f}"), size.X, size.Y);
-	UE_LOG(LogTemp, Warning, TEXT("BB.area: {%f}"), a);
-	*/
-	
-}
-
 
 /* This function turns segments and intersections into a graph */
 Graph<Intersection*> ACityBlocksMaker::MakeGraph(std::vector<Intersection*> intersections, std::vector<Segment*> segments)

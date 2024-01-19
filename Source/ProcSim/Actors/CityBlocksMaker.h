@@ -20,8 +20,6 @@ public:
 	// Sets default values for this actor's properties
 	ACityBlocksMaker();
 
-	virtual void BeginPlay() override;
-
 	UProceduralMeshComponent* ProceduralMesh;
 
 	/* Turns intersections and segments into graph */

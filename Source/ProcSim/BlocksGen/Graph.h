@@ -44,15 +44,30 @@ public:
 		return true;
 	}
 
+	// removes edge
+	bool RemoveEdge(const int id1, const int id2) {
+		if (id1 == id2 || vertices.find(id1) == vertices.end() || vertices.find(id2) == vertices.end()) {
+			UE_LOG(LogTemp, Error, TEXT("ERROR REMOVING EDGE"));
+			return false;
+		}
+
+		vertices[id1]->adj.erase(vertices[id1]->adj.find(id2));
+		vertices[id2]->adj.erase(vertices[id2]->adj.find(id1));
+		return true;
+	}
+
 	// constructs graph from the input face
-	void FromFace(const std::vector<int> ids, const std::vector<MetaData> datas) {
+	void FromFace(const std::vector<MetaData> datas) {
+
+		vertices.clear();
+
 		// adding the nodes
-		for (int i = 0; i < ids.size(), i++) {
-			this->AddNode(ids[i], datas[i]);
+		for (int i = 0; i < datas.size(); i++) {
+			this->AddNode(datas[i].ID, datas[i]);
 		}
 		// adding the edges of the cycle
-		for (int i = 0; i < ids.size(), i++) {
-			this->AddEdge(ids[i], ids[(i + 1) % ids.size()]);
+		for (int i = 0; i < datas.size(); i++) {
+			this->AddEdge(datas[i].ID, datas[(i + 1) % datas.size()].ID);
 		}
 	}
 };
