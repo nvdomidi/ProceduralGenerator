@@ -267,7 +267,135 @@ TArray<TArray<int>> ACityBlocksMaker::MinimumCycleBasis(std::vector<Intersection
 	return TArray<TArray<int>>();
 }
 
-void ACityBlocksMaker::ParcelBlocks(TArray<TArray<int>> faces, Graph<Intersection> graph)
+void ACityBlocksMaker::ParcelBlocks(Graph<Intersection> graph, FVector midpoint)
 {
+	// we must change the type to GraphVertex instead of Intersection
+	Graph<GraphVertex> cityGraph{};
+	
+	// adding the nodes
+	for (auto v : graph.vertices) {
+		GraphVertex vert(v.second->data.position);
+		vert.ID = v.second->data.ID;
+		
+		cityGraph.AddNode(vert.ID, vert);
+	}
+
+	// adding the edges
+	for (auto v : graph.vertices) {
+		for (int neighbor : v.second->adj) {
+			cityGraph.AddEdge(v.second->id, neighbor);
+		}
+	}
+
+	// finding the faces and printing to confirm
+	cityGraph.FindFaces();
+
+	int numFaces = 0;
+
+	for (auto face : cityGraph.faces) {
+
+		numFaces++;
+
+		FString toPrint = FString::Printf(TEXT("Face_%d: "), numFaces);
+		for (int v : face) {
+			toPrint += (FString::FromInt(v) + ",");
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *toPrint);
+
+
+	}
+	
+	UE_LOG(LogTemp, Warning, TEXT("Number of cityGraph faces: %d"), cityGraph.faces.size());
+
+
+
+	for (int i = 0; i < cityGraph.faces.size(); i++) {
+		std::vector<int> blockFace = cityGraph.faces[i];
+
+		std::vector<GraphVertex> blockNodes{};
+
+		for (int node : blockFace) {
+			blockNodes.push_back(cityGraph.vertices[node]->data);
+		}
+
+		Parcel blockParcel(blockNodes);
+
+		FString parcel_string_before = "";
+		FString parcel_nodes_string_before = "";
+
+		for (GraphVertex node : blockParcel.face) {
+			parcel_string_before += (FString::FromInt(node.ID) + ",");
+
+			parcel_nodes_string_before += ("(" + FString::SanitizeFloat(float(node.position.x)) + "," +
+				FString::SanitizeFloat(float(node.position.y)) + ")");
+
+			GetWorld()->SpawnActor<AActor>(this->befBP, FVector{ static_cast<float>(midpoint.X + 100*node.position.x),
+				static_cast<float>(midpoint.Y + 100 * node.position.y), 80.0f }, FRotator{}, FActorSpawnParameters{});
+		}
+
+		
+		//blockParcel.squareAcuteAngles(40, 0.1);
+		//blockParcel.insetParcelUniformXY(0.08);
+
+		
+		Block* lotBlock = new Block();
+		lotBlock->parcels = std::vector<Parcel>{ blockParcel };
+
+		lotBlock->subdivideParcels();
+
+
+
+
+		FString parcel_string_after = "";
+		FString parcel_nodes_string_after = "";
+
+		for (GraphVertex node : blockParcel.face) {
+			parcel_string_after += (FString::FromInt(node.ID) + ",");
+
+			parcel_nodes_string_after += ("(" + FString::SanitizeFloat(float(node.position.x)) + "," +
+				FString::SanitizeFloat(float(node.position.y)) + ")");
+
+			GetWorld()->SpawnActor<AActor>(this->aftBP, FVector{ static_cast<float>(midpoint.X + 100 * node.position.x),
+				static_cast<float>(midpoint.Y + 100 * node.position.y), 80.0f }, FRotator{}, FActorSpawnParameters{});
+		}
+
+		/*
+		if (parcel_string_before != parcel_string_after || true) {
+			UE_LOG(LogTemp, Warning, TEXT("Parcel Before: %s"), *parcel_string_before);
+			UE_LOG(LogTemp, Warning, TEXT("Parcel Before: %s"), *parcel_nodes_string_before);
+			UE_LOG(LogTemp, Warning, TEXT("Parcel After: %s"), *parcel_string_after);
+			UE_LOG(LogTemp, Warning, TEXT("Parcel After: %s"), *parcel_nodes_string_after);
+		}
+		*/
+
+		UE_LOG(LogTemp, Warning, TEXT("Parcels before: %s"), *parcel_string_before);
+
+		FString lotBlockString = "";
+
+		for (Parcel lotBlockParcel : lotBlock->parcels) {
+			lotBlockString += FString::Printf(TEXT("Block#%d Parcel:"), i);
+			
+			for (GraphVertex node : lotBlockParcel.face) {
+				lotBlockString += ("(" + FString::SanitizeFloat(float(node.position.x)) + "," +
+					FString::SanitizeFloat(float(node.position.y)) + ")");
+			}
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("Block after: %s"), *lotBlockString);
+
+	}
+
+	
+
+	
+	
+
+}
+
+void ACityBlocksMaker::SetBlueprints(TSubclassOf<AActor> beforeBP, TSubclassOf<AActor> afterBP)
+{
+	this->befBP = beforeBP;
+	this->aftBP = afterBP;
 }
 

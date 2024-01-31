@@ -295,7 +295,7 @@ public:
 		this->graph = new Graph<GraphVertex>;
 		this->graph->FromFace(nodes);
 		this->face = nodes;
-		//this->getOBB();
+		this->getOBB();
 	}
 
 	// copy constructor
@@ -335,7 +335,8 @@ public:
 			float angle = acos(dot);
 
 			// If angle is acute and d is small, omit that part
-			if (angle * 57.2958 < angle_delta) {// radians to degrees
+			float angleRads = angle * 57.2958;
+			if (angleRads < angle_delta && angleRads > angle_delta/8) {// radians to degrees
 				if (!(d < length_delta)) {
 
 					// create two new nodes, insetting current node by d 
@@ -400,7 +401,7 @@ public:
 			float dist = FVector2D::Distance(FVector2D{ float(this->face[i].position.x),
 				float(this->face[i].position.y) }, center);
 
-			clamp_inset = std::min(inset, dist - limit); // TODO: units?
+			clamp_inset = std::min(inset, dist - limit); // this means dont get closer than the limit
 
 			int prev = i == 0 ? this->face.size() - 1 : (i - 1);
 			int next = (i + 1) % this->face.size();

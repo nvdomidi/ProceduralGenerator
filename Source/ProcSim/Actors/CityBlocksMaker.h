@@ -41,7 +41,11 @@ public:
 	TArray<TArray<int>> MinimumCycleBasis(std::vector<Intersection*> intersections, std::vector<Segment*> segments);
 
 	/* Parcel the found faces into smaller blocks */
-	void ParcelBlocks(TArray<TArray<int>> faces, Graph<Intersection> graph);
+	void ParcelBlocks(Graph<Intersection> graph, FVector midpoint);
+
+	/* set actor for intersection showing */
+	void SetBlueprints(TSubclassOf<AActor> beforeBP, TSubclassOf<AActor> afterBP);
+
 
 
 	/*
@@ -52,4 +56,7 @@ public:
 
 	std::vector<Intersection*> in11;
 	TArray<FVector> cyclepositions{};
+
+	TSubclassOf<AActor> befBP;
+	TSubclassOf<AActor> aftBP;
 };

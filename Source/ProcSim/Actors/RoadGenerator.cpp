@@ -259,6 +259,7 @@ namespace roadMath {
 bool ARoadGenerator::CreateBlocks()
 {
 	this->CityBlocksMaker = Cast<ACityBlocksMaker>(GetWorld()->SpawnActor<ACityBlocksMaker>(FActorSpawnParameters{}));
+	this->CityBlocksMaker->SetBlueprints(this->MoreThanFourWayBlueprint, this->CheckBlueprint);
 	graph = this->CityBlocksMaker->MakeGraph(this->intersections, this->segments);
 	
 	int vertices = graph.vertices.size();
@@ -272,7 +273,7 @@ bool ARoadGenerator::CreateBlocks()
 	this->faces = this->CityBlocksMaker->FindFaces(graph);
 
 	int numFaces = 0;
-
+	/*
 	for (auto face : this->faces) {
 
 		numFaces++;
@@ -286,8 +287,13 @@ bool ARoadGenerator::CreateBlocks()
 
 
 	}
+	*/
 
 	UE_LOG(LogTemp, Warning, TEXT("numFaces: %d"), numFaces);
+
+	this->CityBlocksMaker->ParcelBlocks(graph, (regionStartPoint+regionEndPoint)/2);
+
+	
 
 
 	/*
@@ -338,6 +344,10 @@ void ARoadGenerator::TransformToUECoordinates(FVector midPoint)
 
 	for (auto intersection : intersections) {
 		intersection->position = intersection->position * 100 + Point{midPoint.X, midPoint.Y};
+	}
+
+	for (auto vert : graph.vertices) {
+		vert.second->data.position = vert.second->data.position * 100 + Point{midPoint.X, midPoint.Y};
 	}
 
 }
@@ -469,22 +479,22 @@ void ARoadGenerator::CreateIntersections(FVector midPoint)
 		//FOR TEST
 		// two way
 		if (intersection->branches.size() == 2) {
-			GetWorld()->SpawnActor<AActor>(this->TwoWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
-				static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
+			//GetWorld()->SpawnActor<AActor>(this->TwoWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+			//	static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
 		}
 		// three way
 		else if (intersection->branches.size() == 3) {
-			GetWorld()->SpawnActor<AActor>(this->ThreeWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
-				static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
+			//GetWorld()->SpawnActor<AActor>(this->ThreeWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+			//	static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
 		}
 		// four way
 		else if (intersection->branches.size() == 4) {
-			GetWorld()->SpawnActor<AActor>(this->FourWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
-				static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
+			//GetWorld()->SpawnActor<AActor>(this->FourWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+			//	static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
 		}
 		else if (intersection->branches.size() > 4) {
-			GetWorld()->SpawnActor<AActor>(this->MoreThanFourWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
-				static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
+			//GetWorld()->SpawnActor<AActor>(this->MoreThanFourWayBlueprint, FVector{ static_cast<float>(intersection->position.x),
+			//	static_cast<float>(intersection->position.y), 45.0f }, FRotator{}, FActorSpawnParameters{});
 		}
 		
 
