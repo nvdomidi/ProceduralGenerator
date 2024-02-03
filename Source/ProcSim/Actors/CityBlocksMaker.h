@@ -4,7 +4,8 @@
 
 #include "ProcSim/MapGen/MapGen.h"
 #include "ProcSim/BlocksGen/Graph.h"
-#include "ProcSim/BlocksGen/MinimalCycleBasis.h"
+#include "ProcSim/BlocksGen/GraphVertex.h"
+#include "ProcSim/BlocksGen/Parcel.h"
 #include "ProceduralMeshComponent.h"
 
 #include "CoreMinimal.h"
@@ -20,39 +21,26 @@ public:
 	// Sets default values for this actor's properties
 	ACityBlocksMaker();
 
+	UPROPERTY()
 	UProceduralMeshComponent* ProceduralMesh;
 
 	/* Turns intersections and segments into graph */
-	Graph<Intersection> MakeGraph(std::vector<Intersection*> intersections, std::vector<Segment*> segments);
-
-	/* Make cycles from the graph created */
-	TArray<TArray<int>> MakeCycles(Graph<Intersection*> graph);
+	Graph<GraphVertex*>* MakeGraph(std::vector<Intersection*> intersections, std::vector<Segment*> segments);
 
 	/* Find faces from the graph created */
-	TArray<TArray<int>> FindFaces(Graph<Intersection> graph);
-
-	/* Remove the outer cycles */
-	TArray<TArray<int>> RemoveOuterCycles(TArray<TArray<int>> cycles, Graph<Intersection*> graph);
-
-	/* recursive function */
-	void DFSCycles(std::shared_ptr<gte::MinimalCycleBasis<double>::Tree> tree, int& num);
-
-	/* Minimum Cycle Basis Extraction from the graph */
-	TArray<TArray<int>> MinimumCycleBasis(std::vector<Intersection*> intersections, std::vector<Segment*> segments);
+	TArray<TArray<int>> FindFaces(Graph<GraphVertex*>* graph);
 
 	/* Parcel the found faces into smaller blocks */
-	void ParcelBlocks(Graph<Intersection> graph, FVector midpoint);
+	TArray<Block*> ParcelBlocks(Graph<GraphVertex*>* graph, FVector midpoint);
+
+	/* Creates procedural mesh component for the input parcel */
+	void ParcelToMesh(const Parcel* p, const FVector midPoint, int section);
+
+	/* Turn a face into a parcel */
+	Parcel* faceToParcel(Graph<GraphVertex*>* graph, std::vector<int> face);
 
 	/* set actor for intersection showing */
 	void SetBlueprints(TSubclassOf<AActor> beforeBP, TSubclassOf<AActor> afterBP);
-
-
-
-	/*
-	int getMostCCW(int v, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph);
-	bool isCCW(TArray<int> face, Graph<Intersection*> graph);
-	int getBestFaceCandidate(int nextVert, TArray<int> candidates, Point prevEdge, Graph<Intersection*> graph);
-	*/
 
 	std::vector<Intersection*> in11;
 	TArray<FVector> cyclepositions{};

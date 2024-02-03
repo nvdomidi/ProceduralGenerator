@@ -10,6 +10,8 @@
 #include "ProcSim/Utils/ImageHandler.h"
 #include "ProcSim/Actors/ProceduralMeshMaker.h"
 #include "ProcSim/Actors/CityBlocksMaker.h"
+#include "ProcSim/BlocksGen/Graph.h"
+#include "ProcSim/BlocksGen/GraphVertex.h"
 
 
 #include "CoreMinimal.h"
@@ -101,7 +103,7 @@ public:
 	std::vector<Intersection*> intersections;
 	AProceduralMeshMaker* ProceduralMeshMaker = nullptr;
 	ACityBlocksMaker* CityBlocksMaker = nullptr;
-	Graph<Intersection> graph;
+	Graph<GraphVertex*>* graph;
 	TArray<TArray<int>> faces;
 
 	// Sets default values for this actor's properties

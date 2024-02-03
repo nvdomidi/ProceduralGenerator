@@ -207,7 +207,7 @@ void ARoadGenerator::ShowRoads()
 		Point centerPos{};
 
 		for (int v : face) {
-			centerPos = centerPos + graph.vertices[v]->data.position;
+			centerPos = centerPos + graph->vertices[v]->data->position;
 		}
 
 		centerPos = centerPos / face.Num();
@@ -258,11 +258,14 @@ namespace roadMath {
 /* Makes graph and divides into cycles*/
 bool ARoadGenerator::CreateBlocks()
 {
+	// Step 1: Create the ACityBlocksMaker Actor
 	this->CityBlocksMaker = Cast<ACityBlocksMaker>(GetWorld()->SpawnActor<ACityBlocksMaker>(FActorSpawnParameters{}));
+	// Step 2: Set blueprint objects for visualization
 	this->CityBlocksMaker->SetBlueprints(this->MoreThanFourWayBlueprint, this->CheckBlueprint);
+	// Step 3: Create city graph from intersections and segments
 	graph = this->CityBlocksMaker->MakeGraph(this->intersections, this->segments);
 	
-	int vertices = graph.vertices.size();
+	int vertices = graph->vertices.size();
 
 	int edges = segments.size();
 
@@ -273,55 +276,11 @@ bool ARoadGenerator::CreateBlocks()
 	this->faces = this->CityBlocksMaker->FindFaces(graph);
 
 	int numFaces = 0;
-	/*
-	for (auto face : this->faces) {
 
-		numFaces++;
-
-		FString toPrint = FString::Printf(TEXT("Face_%d: "), numFaces);
-		for (int v : face) {
-			toPrint += (FString::FromInt(v) + ",");
-		}
-
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *toPrint);
-
-
-	}
-	*/
-
-	UE_LOG(LogTemp, Warning, TEXT("numFaces: %d"), numFaces);
+	UE_LOG(LogTemp, Warning, TEXT("numFaces: %d"), this->faces.Num());
 
 	this->CityBlocksMaker->ParcelBlocks(graph, (regionStartPoint+regionEndPoint)/2);
 
-	
-
-
-	/*
-	this->CityBlocksMaker->MinimumCycleBasis(intersections, segments);
-	
-	for (auto pos : this->CityBlocksMaker->cyclepositions) {
-		GetWorld()->SpawnActor<AActor>(this->IntersectionBlueprint, pos, FRotator{}, FActorSpawnParameters{});
-	}
-
-	// spawning something at the mid position
-
-	TArray<TArray<int>> cycles = {};
-
-	for (TArray<int> cycle : cycles) {
-		Point pos{};
-		FString cyclestring = "";
-		for (int i : cycle) {
-			cyclestring += FString::Printf(TEXT("%d-"), i);
-			pos = pos + graph.vertices[i]->data->position;
-		}
-		pos = pos / cycle.Num();
-
-		FVector pos3d{ static_cast<float>(pos.x), static_cast<float>(pos.y), 45.0f };
-		auto cyclebp = GetWorld()->SpawnActor<AActor>(this->IntersectionBlueprint, pos3d, FRotator{}, FActorSpawnParameters{});
-		//auto textcycle = Cast<UTextRenderComponent>(cyclebp->GetComponentByClass(UTextRenderComponent::StaticClass()));
-		//textcycle->SetText(cyclestring);
-	}
-	*/
 
 	return true;
 }
@@ -346,8 +305,8 @@ void ARoadGenerator::TransformToUECoordinates(FVector midPoint)
 		intersection->position = intersection->position * 100 + Point{midPoint.X, midPoint.Y};
 	}
 
-	for (auto vert : graph.vertices) {
-		vert.second->data.position = vert.second->data.position * 100 + Point{midPoint.X, midPoint.Y};
+	for (auto vert : graph->vertices) {
+		vert.second->data->position = vert.second->data->position * 100 + Point{midPoint.X, midPoint.Y};
 	}
 
 }
